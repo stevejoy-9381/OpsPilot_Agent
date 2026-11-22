@@ -1,0 +1,71 @@
+[project]
+name = "opspilot"
+version = "0.1.0"
+description = "Incident-investigation agent for a local lab of toy Docker Compose services"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.11",
+    "uvicorn[standard]==0.34.0",
+    "pydantic==2.10.6",
+    "pydantic-settings==2.8.1",
+    "sqlalchemy==2.0.38",
+    "alembic==1.15.1",
+    "psycopg[binary]==3.2.5",
+    "redis==5.2.1",
+    "langgraph==0.3.5",
+    "langgraph-checkpoint-postgres==2.0.16",
+    "structlog==25.1.0",
+    "httpx==0.28.1",
+    "google-genai==2.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.5",
+    "pytest-asyncio==0.25.3",
+    "ruff==0.9.10",
+    "mypy==1.15.0",
+    "types-redis==4.6.0.20241004",
+    "pre-commit==4.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["apps", "agent", "tools", "broker"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+explicit_package_bases = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "langgraph.*",
+    "langgraph_checkpoint_postgres.*",
+    "google.*",
+    "google",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+markers = [
+    "live: live tests against external APIs (skipped unless GEMINI_API_KEY is provided)",
+]
