@@ -1,0 +1,60 @@
+name: opspilot
+
+# Network intent (only services defined in this file join networks today):
+#   core   - api, postgres, redis. Private application traffic.
+#   lab    - toy services and the fault controller (Feature 1).
+#   broker - broker only. Isolated control plane; the LLM worker must never join it.
+# See infra/README.md for the trust-boundary rationale.
+networks:
+  core:
+  lab:
+    internal: true
+  broker:
+    internal: true
+
+services:
+  postgres:
+    image: postgres:19.0-bookworm
+    restart: unless-stopped
+    environment:
+      # Defaults mirror .env.example so the stack works out of the box. Pass
+      # --env-file .env (see infra/README.md) to use the root .env values.
+      POSTGRES_USER: ${POSTGRES_USER:-opspilot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+      POSTGRES_DB: ${POSTGRES_DB:-opspilot}
+    ports:
+      # Loopback only: never expose the lab database on the host's external interfaces.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # PostgreSQL 19 images use /var/lib/postgresql as the volume root (PGDATA is
+      # /var/lib/postgresql/19/docker), not the pre-18 /var/lib/postgresql/data path.
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - core
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:8.10.3-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks:
+      - core
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+# Deliberate: no service in this file mounts the host Docker control socket.
+# Only the future broker service may hold lab control, and it will never be
+# reachable from the LLM worker. Do not add a socket mount here.
+volumes:
+  postgres_data:
