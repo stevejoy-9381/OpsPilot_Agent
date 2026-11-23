@@ -1,0 +1,36 @@
+scenario_id: S3
+family: dependency_timeout
+variant: redis_latency_timeout
+template_id: tmpl_redis_timeout_v1
+seed: 202
+split: unassigned
+baseline_versions:
+  gateway: v1.0.0
+  orders: v1.0.0
+  inventory: v1.0.0
+timeline:
+  - event_id: fault_redis_latency_spike
+    offset_s: 20
+    type: fault
+    service: inventory
+    dependency: redis
+    dependency_latency_ms: 300.0
+load_profile: steady_20rps
+warmup_s: 10
+observe_s: 90
+evidence_degradations: []
+ground_truth:
+  root_cause_service: inventory
+  root_cause_category: dependency_failure
+  mechanism: redis_dependency_latency_timeout
+  culprit_deploy: null
+  expected_action:
+    action: remediate_dependency
+    target: redis
+health_thresholds:
+  error_rate: 0.05
+  p95_latency_ms: 350.0
+narrative: >
+  A degradation in the Redis datastore causes inventory stock cache read calls to exceed their 150ms timeout.
+  Inventory times out on Redis and falls back to Postgres, logging natural timeout symptoms and elevating latency.
+  No software deployment occurred prior to the degradation, pointing investigation to external dependency health.

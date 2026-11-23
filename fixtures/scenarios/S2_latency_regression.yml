@@ -1,0 +1,35 @@
+scenario_id: S2
+family: latency_regression
+variant: inventory_cache_bypass_audit
+template_id: tmpl_inventory_latency_v1
+seed: 101
+split: unassigned
+baseline_versions:
+  gateway: v1.0.0
+  orders: v1.0.0
+  inventory: v1.0.0
+timeline:
+  - event_id: deploy_inventory_v120
+    offset_s: 15
+    type: deploy
+    service: inventory
+    version: v1.2.0
+load_profile: steady_20rps
+warmup_s: 10
+observe_s: 90
+evidence_degradations: []
+ground_truth:
+  root_cause_service: inventory
+  root_cause_category: performance_regression
+  mechanism: cache_bypass_and_redundant_query
+  culprit_deploy: deploy_inventory_v120
+  expected_action:
+    action: rollback
+    service: inventory
+health_thresholds:
+  error_rate: 0.05
+  p95_latency_ms: 250.0
+narrative: >
+  Inventory service is updated to v1.2.0 which bypasses Redis cache lookups and runs a secondary database query per request.
+  The hot stock check path experiences severe datastore contention, leading to high query latency.
+  Checkout tail p95 response time breaches SLA thresholds while error rates remain near zero.

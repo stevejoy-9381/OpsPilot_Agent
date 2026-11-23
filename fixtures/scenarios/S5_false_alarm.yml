@@ -1,0 +1,33 @@
+scenario_id: S5
+family: false_alarm
+variant: transient_marketing_burst
+template_id: tmpl_false_alarm_burst_v1
+seed: 404
+split: unassigned
+baseline_versions:
+  gateway: v1.0.0
+  orders: v1.0.0
+  inventory: v1.0.0
+timeline:
+  - event_id: transient_traffic_spike
+    offset_s: 20
+    type: load_change
+    profile: burst_5x
+load_profile: steady_20rps
+warmup_s: 10
+observe_s: 90
+evidence_degradations: []
+ground_truth:
+  root_cause_service: null
+  root_cause_category: none
+  mechanism: transient_traffic_spike_within_capacity
+  culprit_deploy: null
+  expected_action:
+    action: no_action
+health_thresholds:
+  error_rate: 0.05
+  p95_latency_ms: 500.0
+narrative: >
+  A short traffic burst temporarily increases request volume by 5x due to an external marketing campaign.
+  The service architecture accommodates the surge within bounded connection queues without errors or service degradation.
+  Once the brief burst subsides, system metrics return to baseline without requiring any administrative intervention.

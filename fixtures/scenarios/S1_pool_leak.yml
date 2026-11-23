@@ -1,0 +1,35 @@
+scenario_id: S1
+family: pool_leak
+variant: orders_conflict_exhaustion
+template_id: tmpl_orders_pool_leak_v1
+seed: 42
+split: unassigned
+baseline_versions:
+  gateway: v1.0.0
+  orders: v1.0.0
+  inventory: v1.0.0
+timeline:
+  - event_id: deploy_orders_v130
+    offset_s: 15
+    type: deploy
+    service: orders
+    version: v1.3.0
+load_profile: steady_20rps
+warmup_s: 10
+observe_s: 120
+evidence_degradations: []
+ground_truth:
+  root_cause_service: orders
+  root_cause_category: software_defect
+  mechanism: connection_pool_leak_on_conflict
+  culprit_deploy: deploy_orders_v130
+  expected_action:
+    action: rollback
+    service: orders
+health_thresholds:
+  error_rate: 0.05
+  p95_latency_ms: 1000.0
+narrative: >
+  A deployment of orders v1.3.0 introduces an unclosed database connection when handling stock conflicts.
+  As steady customer checkout traffic arrives, connection slots leak gradually until the bounded pool is exhausted.
+  Subsequent checkout transactions fail with pool timeout 503 errors while upstream dependencies remain healthy.
