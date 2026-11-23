@@ -1,0 +1,13 @@
+# Human Blind Diagnosis Log
+
+Record your diagnosis for each investigated packet.
+Allowed categories: `bad_deploy` | `dependency_failure` | `false_alarm` | `unknown`
+Allowed mechanisms: `connection_pool_exhaustion` | `cache_bypass_latency` | `dependency_timeout` | `none` | `unknown`
+
+| packet_id | service | category | mechanism | culprit_deploy_id | evidence_used | time_spent | confidence |
+|---|---|---|---|---|---|---|---|
+| `packet_a3b1` | inventory | dependency_failure | dependency_timeout | | metrics/dependency_call_duration_seconds_bucket.csv, metrics/dependency_errors_total.csv, logs/inventory.jsonl, deploys/deploys.json | 3m | 0.95 |
+| `packet_ad09` | inventory | bad_deploy | cache_bypass_latency | deploy_inventory_v120 | deploys/deploys.json, metrics/http_request_duration_seconds_bucket.csv, logs/inventory.jsonl | 2m | 0.98 |
+| `packet_cd96` | none | false_alarm | none | | metrics/http_requests_total.csv, metrics/db_pool_in_use.csv, logs/gateway.jsonl | 1m | 1.0 |
+| `packet_e0a4` | inventory | dependency_failure | dependency_timeout | | metrics/dependency_call_duration_seconds_bucket.csv, metrics/dependency_errors_total.csv, logs/inventory.jsonl | 2m | 0.98 |
+| `packet_e86a` | orders | bad_deploy | connection_pool_exhaustion | deploy_orders_v130 | deploys/deploys.json, metrics/db_pool_in_use.csv, logs/orders.jsonl | 2m | 1.0 |
