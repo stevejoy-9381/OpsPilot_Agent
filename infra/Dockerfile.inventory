@@ -1,0 +1,10 @@
+# syntax=docker/dockerfile:1
+FROM opspilot-lab-base:v1.0.0
+
+WORKDIR /app
+
+# Layer 3: Service-specific source code
+COPY lab/services/__init__.py lab/services/
+COPY lab/services/inventory/ lab/services/inventory/
+
+CMD ["uv", "run", "uvicorn", "lab.services.inventory.main:app", "--host", "0.0.0.0", "--port", "8000"]

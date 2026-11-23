@@ -1,0 +1,272 @@
+name: opspilot
+
+# Lab environment Docker Compose definition.
+# Contains toy microservices (gateway, orders, inventory), data stores (lab-postgres, lab-redis),
+# Prometheus telemetry, and the isolated scenario controller on `lab-admin`.
+#
+# Networks:
+#   - `lab`: internal traffic between services and data stores.
+#   - `lab-admin`: administrative control plane for simulated deploys, fault injection, and controller.
+# Only gateway publishes a port, bound strictly to 127.0.0.1 loopback.
+# Admin routes and the controller are unreachable from the `core` application network.
+#
+# Compose Profiles:
+#   - `lab`: Core lab microservices, data stores, Prometheus, OTel collector, and scenario controller (~2.7 GB limit).
+#   - `extras`: Optional Grafana and load generator containers (OFF by default, ~0.5 GB limit).
+
+networks:
+  lab:
+  lab-admin:
+    internal: true
+
+x-lab-python-service: &lab-service
+  build:
+    context: ..
+    dockerfile: infra/Dockerfile.lab
+  restart: unless-stopped
+  environment:
+    VERSION: ${VERSION:-v1.0.0}
+    LAB_ADMIN_TOKEN: ${LAB_ADMIN_TOKEN:-super-secret-admin-token}
+    TELEMETRY_LOG_DIR: /telemetry/logs
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  volumes:
+    - telemetry:/telemetry:rw
+  networks:
+    - lab
+    - lab-admin
+  profiles:
+    - lab
+
+services:
+  lab-postgres:
+    image: postgres:19.0-bookworm
+    restart: unless-stopped
+    profiles:
+      - lab
+    mem_limit: 512m
+    environment:
+      POSTGRES_USER: ${LAB_POSTGRES_USER:-lab_admin}
+      POSTGRES_PASSWORD: ${LAB_POSTGRES_PASSWORD:-lab-postgres-local-pw}
+      POSTGRES_DB: ${LAB_POSTGRES_DB:-lab}
+    volumes:
+      - lab_postgres_data:/var/lib/postgresql
+    networks:
+      - lab
+      - lab-admin
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  lab-redis:
+    image: redis:8.10.3-alpine
+    restart: unless-stopped
+    profiles:
+      - lab
+    mem_limit: 256m
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks:
+      - lab
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  inventory:
+    <<: *lab-service
+    mem_limit: 384m
+    command: ["uv", "run", "uvicorn", "lab.services.inventory.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      SERVICE_NAME: inventory
+      VERSION: ${VERSION:-v1.0.0}
+      LAB_ADMIN_TOKEN: ${LAB_ADMIN_TOKEN:-super-secret-admin-token}
+      LAB_DATABASE_URL: postgresql://inventory_ro:inv-ro-local-pw@lab-postgres:5432/lab
+      LAB_REDIS_URL: redis://lab-redis:6379/0
+      TELEMETRY_LOG_DIR: /telemetry/logs
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      lab-postgres:
+        condition: service_healthy
+      lab-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  orders:
+    <<: *lab-service
+    mem_limit: 384m
+    command: ["uv", "run", "uvicorn", "lab.services.orders.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      SERVICE_NAME: orders
+      VERSION: ${VERSION:-v1.0.0}
+      LAB_ADMIN_TOKEN: ${LAB_ADMIN_TOKEN:-super-secret-admin-token}
+      LAB_DATABASE_URL: postgresql://orders_rw:orders-rw-local-pw@lab-postgres:5432/lab
+      INVENTORY_URL: http://inventory:8000
+      TELEMETRY_LOG_DIR: /telemetry/logs
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    depends_on:
+      lab-postgres:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  gateway:
+    <<: *lab-service
+    mem_limit: 384m
+    command: ["uv", "run", "uvicorn", "lab.services.gateway.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      SERVICE_NAME: gateway
+      VERSION: ${VERSION:-v1.0.0}
+      LAB_ADMIN_TOKEN: ${LAB_ADMIN_TOKEN:-super-secret-admin-token}
+      ORDERS_URL: http://orders:8000
+      TELEMETRY_LOG_DIR: /telemetry/logs
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+    ports:
+      # Only gateway publishes a port, bound strictly to 127.0.0.1
+      - "127.0.0.1:8080:8000"
+    depends_on:
+      orders:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    restart: unless-stopped
+    profiles:
+      - lab
+    mem_limit: 256m
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=2d"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - lab
+      - lab-admin
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.108.0
+    restart: unless-stopped
+    user: "0:0"
+    profiles:
+      - lab
+    mem_limit: 256m
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+      - telemetry:/telemetry:rw
+    networks:
+      - lab
+
+  controller:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.lab
+    restart: unless-stopped
+    profiles:
+      - lab
+    mem_limit: 256m
+    command: ["uv", "run", "uvicorn", "lab.controller.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      SERVICE_NAME: controller
+      CONTROLLER_TOKEN: ${CONTROLLER_TOKEN:-super-secret-controller-token}
+      HARNESS_TOKEN: ${HARNESS_TOKEN:-super-secret-harness-token}
+      LAB_ADMIN_TOKEN: ${LAB_ADMIN_TOKEN:-super-secret-admin-token}
+      GATEWAY_URL: http://gateway:8000
+      ORDERS_URL: http://orders:8000
+      INVENTORY_URL: http://inventory:8000
+      PROMETHEUS_URL: http://prometheus:9090
+      LAB_DATABASE_URL: postgresql://lab_admin:lab-postgres-local-pw@lab-postgres:5432/lab
+      VAULT_DB_PATH: /vault/vault.db
+    volumes:
+      - vault_data:/vault:rw
+    networks:
+      - lab-admin
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # Extras Profile: Optional visualization and continuous load generation (OFF by default)
+  grafana:
+    image: grafana/grafana:11.2.0
+    restart: unless-stopped
+    profiles:
+      - extras
+    mem_limit: 256m
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - lab
+
+  load-generator:
+    <<: *lab-service
+    restart: unless-stopped
+    profiles:
+      - extras
+    mem_limit: 256m
+    environment:
+      GATEWAY_URL: http://gateway:8000
+      LOADGEN_OUTPUT_PATH: /loadgen/summary.json
+    volumes:
+      - loadgen_data:/loadgen:rw
+    command:
+      [
+        "uv",
+        "run",
+        "python",
+        "-m",
+        "lab.loadgen",
+        "run",
+        "--profile",
+        "steady_20rps",
+        "--seed",
+        "7",
+        "--duration",
+        "3600",
+        "--gateway-url",
+        "http://gateway:8000",
+        "--output",
+        "/loadgen/summary.json"
+      ]
+    networks:
+      - lab
+    depends_on:
+      gateway:
+        condition: service_healthy
+
+volumes:
+  lab_postgres_data:
+  telemetry:
+  prometheus_data:
+  loadgen_data:
+  vault_data:

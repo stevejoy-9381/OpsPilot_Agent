@@ -1,0 +1,1 @@
+"""OpsPilot inventory lab service."""

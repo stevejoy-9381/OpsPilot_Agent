@@ -1,0 +1,1 @@
+"""Gateway toy service package."""
