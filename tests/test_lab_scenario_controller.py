@@ -10,6 +10,7 @@ import httpx
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 from lab.controller.api import create_controller_app
 from lab.controller.models import (
@@ -37,9 +38,9 @@ def test_vault(temp_vault_path: str) -> Vault:
 @pytest.fixture
 def test_settings(temp_vault_path: str) -> ControllerSettings:
     return ControllerSettings(
-        controller_token="test-controller-token",
-        harness_token="test-harness-token",
-        lab_admin_token="test-admin-token",
+        controller_token=SecretStr("test-controller-token"),
+        harness_token=SecretStr("test-harness-token"),
+        lab_admin_token=SecretStr("test-admin-token"),
         vault_db_path=temp_vault_path,
         gateway_url="http://mock-gateway:8000",
         orders_url="http://mock-orders:8000",
@@ -74,7 +75,8 @@ def test_vault_crud(test_vault: Vault) -> None:
     assert retrieved.run_id == "run-123456"
     assert retrieved.scenario_id == "F1"
     assert retrieved.family == "connection_leak"
-    assert retrieved.root_cause["service"] == "orders"
+    rc = retrieved.root_cause
+    assert (rc.get("service") if isinstance(rc, dict) else rc.service) == "orders"
     assert retrieved.culprit_deploy_id == "dep-789"
     assert retrieved.status == "running"
 

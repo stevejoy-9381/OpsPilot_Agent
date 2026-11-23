@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Any
 
 from lab.scenarios.loader import load_all_scenarios, load_scenario
 from lab.scenarios.models import ExpectedAction

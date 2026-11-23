@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 # Fail if any Compose file references the Docker control socket, except inside
-# the explicitly allowlisted "broker" service. No broker service exists yet, so
-# today any reference is a violation.
+# the explicitly allowlisted "broker" service.
+#
+# Verified Compose files include:
+#   - infra/docker-compose.yml (core PostgreSQL & Redis)
+#   - infra/docker-compose.lab.yml (gateway, orders, inventory, lab-postgres, lab-redis)
+#
+# Lab microservices simulate deployments strictly in-process via authenticated
+# admin endpoints over `lab-admin`; mounting the Docker control socket into any lab
+# service is strictly forbidden.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -9,10 +16,9 @@ allowlisted_service="broker"
 socket_path="/var/run/docker.sock"
 
 mapfile -t compose_files < <(
-  find "$repo_root" -type f \
-    \( -name 'compose.yml' -o -name 'compose.yaml' \
-       -o -name 'docker-compose.yml' -o -name 'docker-compose.yaml' \) \
-    -not -path '*/.git/*' | sort
+  find "$repo_root" \
+    \( -name .git -o -name node_modules -o -name .venv \) -prune \
+    -o -type f \( -name '*compose*.yml' -o -name '*compose*.yaml' \) -print | sort
 )
 
 if (( ${#compose_files[@]} == 0 )); then

@@ -1,58 +1,83 @@
-# OpsPilot infrastructure
+# OpsPilot Infrastructure
 
-Docker Compose definitions for the local, synthetic OpsPilot lab. Only PostgreSQL
-and Redis exist today; the API, agent, broker, and lab services arrive in later
-phases.
+Docker Compose definitions for the local, synthetic OpsPilot lab and application infrastructure.
 
-## Services
+## Services & Resource Limits
 
-| Service  | Image                   | Purpose                          | Host bind         |
-| -------- | ----------------------- | -------------------------------- | ----------------- |
-| postgres | `postgres:19.0-bookworm` | Application state and approvals  | `127.0.0.1:5432`  |
-| redis    | `redis:8.10.3-alpine`    | Short-lived run/approval state   | `127.0.0.1:6379`  |
+All services declare strict memory bounds (`mem_limit`) to ensure GitHub Codespaces and low-memory environments remain stable and responsive.
 
-Both ports bind to loopback only. PostgreSQL data lives in the named volume
-`opspilot_postgres_data` mounted at `/var/lib/postgresql`, which is the volume
-root used by PostgreSQL 18+ images.
+### Profile `core` (OpsPilot Application Plane)
 
-Version pins were checked against the official release sources on 2026-11-22:
-PostgreSQL 19.0 (GA 2026-11-19) and Redis 8.10.3 (2026-10-26).
+| Service | Image / Build | Network(s) | Memory Limit | Purpose | Host bind |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `postgres` | `postgres:19.0-bookworm` | `core` | `512m` | OpsPilot application state and audit checkpoints | `127.0.0.1:5432` |
+| `redis` | `redis:8.10.3-alpine` | `core` | `256m` | OpsPilot cache and ephemeral state | `127.0.0.1:6379` |
 
-## Networks and trust boundaries
+**Total Profile `core` Memory**: **768 MB**
 
-- `core` — API, PostgreSQL, Redis. Normal application traffic.
-- `lab` — toy services and the fault controller (Feature 1). Internal network.
-- `broker` — broker only. Internal network.
+---
 
-All three are declared in `docker-compose.yml`. Compose only materialises a
-network once a service joins it, so `lab` and `broker` stay as documented intent
-until their services exist; that is expected at this stage.
+### Profile `lab` (Synthetic Lab Microservices & Telemetry)
 
-The broker is the only component allowed to touch lab control. The LLM worker
-will never join the `broker` network, and neither the worker nor the API will
-ever receive the Docker socket or deployment credentials. The worker talks to
-the API; the API records an exact-plan approval; the broker validates and
-executes that plan. Keeping the broker on its own network means a compromised
-or prompt-injected worker has no route to the control plane even if it escapes
-its own process.
+| Service | Image / Build | Network(s) | Memory Limit | Purpose | Host bind |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `lab-postgres` | `postgres:19.0-bookworm` | `lab` | `512m` | Dedicated lab database (products, inventory, orders) | None (Internal) |
+| `lab-redis` | `redis:8.10.3-alpine` | `lab` | `256m` | Dedicated lab cache-aside store | None (Internal) |
+| `inventory` | `infra/Dockerfile.lab` | `lab`, `lab-admin` | `384m` | Toy inventory stock validation service | None (Internal) |
+| `orders` | `infra/Dockerfile.lab` | `lab`, `lab-admin` | `384m` | Toy order creation and persistence service | None (Internal) |
+| `gateway` | `infra/Dockerfile.lab` | `lab`, `lab-admin` | `384m` | API gateway routing checkouts to orders | `127.0.0.1:8080` |
+| `prometheus` | `prom/prometheus:v2.54.1` | `lab`, `lab-admin` | `256m` | Metrics scraper for lab services | None (Internal) |
+| `otel-collector` | `otel/opentelemetry-collector-contrib:0.108.0` | `lab` | `256m` | Distributed trace receiver and pipeline | None (Internal) |
+| `controller` | `infra/Dockerfile.lab` | `lab-admin` | `256m` | Scenario orchestration & ground truth vault | None (Internal) |
 
-No Compose file mounts `/var/run/docker.sock`. That is deliberate, and
-`scripts/check_no_docker_socket.sh` enforces it. The only future exception is
-the allowlisted `broker` service.
+**Total Profile `lab` Memory**: **2,688 MB**
+
+---
+
+### Profile `extras` (Optional Visualizations & Generators — OFF by Default)
+
+| Service | Image / Build | Network(s) | Memory Limit | Purpose | Host bind |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `grafana` | `grafana/grafana:11.2.0` | `lab` | `256m` | Optional visualization dashboard | `127.0.0.1:3000` |
+| `load-generator` | `infra/Dockerfile.lab` | `lab` | `256m` | Open-loop synthetic traffic generator (`lab.loadgen`) | None (Internal) |
+
+**Total Profile `extras` Memory**: **512 MB**
+
+---
+
+### Total Memory Footprint Summary
+
+$$\text{Core} + \text{Lab} = 768\text{ MB} + 2,688\text{ MB} = 3,456\text{ MB } (\approx 3.375\text{ GB})$$
+
+The baseline footprint for `core` + `lab` is strictly bounded under **3.5 GB**, meeting the **< 4 GB** requirement for low-memory hosts and GitHub Codespaces.
+
+---
+
+## Networks and Trust Boundaries
+
+- **`core`**: Contains OpsPilot application services (`api`, `postgres`, `redis`).
+- **`lab`**: Internal synthetic microservice network (`gateway`, `orders`, `inventory`, `lab-postgres`, `lab-redis`, `prometheus`, `otel-collector`). Isolated from `core` and external internet.
+- **`lab-admin`**: Isolated administrative control plane (`gateway`, `orders`, `inventory`, and scenario controller). Used strictly for simulated in-process deployments and fault injections.
+- **`broker`**: Reserved for the broker service.
+
+### Network Isolation Guarantees
+1. **Unreachable from `core`**: Containers running on the `core` network have no network attachment, route, or DNS resolution to `lab` or `lab-admin`. Admin endpoints on all lab services are strictly unreachable from `core`.
+2. **Zero Docker Socket Exposure**: No container in `docker-compose.yml` or `docker-compose.lab.yml` mounts `/var/run/docker.sock`. Deployments and rollbacks are executed in-process by swapping version profiles over `lab-admin` endpoints authenticated with `X-Lab-Admin-Token`. This is continuously enforced by `scripts/check_no_docker_socket.sh`.
+3. **Optional Dashboards**: Grafana and auxiliary dashboards are optional everywhere. All automated tests interact directly with Prometheus and OpenTelemetry endpoints without depending on Grafana.
 
 ## Usage
 
-From the repository root:
-
 ```bash
-cp .env.example .env   # first time only; .env is git-ignored
-docker compose --env-file .env -f infra/docker-compose.yml config
-docker compose --env-file .env -f infra/docker-compose.yml up -d
-docker compose --env-file .env -f infra/docker-compose.yml ps
-```
+# Codespaces Initial Setup
+make codespace-setup  # Installs python virtual environment and web dependencies
 
-The root `.env` is passed explicitly with `--env-file` because Compose otherwise
-looks for `.env` next to the Compose file (in `infra/`). The Compose file also
-contains local defaults matching `.env.example`, so a plain
-`docker compose -f infra/docker-compose.yml config` still validates. Use
-`--env-file .env` whenever you change credentials or other values.
+# Core Application Stack
+make up               # Start core postgres + redis (profile core), migrate, run API
+make down             # Stop core stack
+
+# Synthetic Lab Stack
+make lab-up           # Start lab services & stores (profile lab), seed data, wait for gateway
+make lab-lean         # Start lab services with existing images without rebuild
+make lab-smoke        # Send 50 checkouts to verify lab health and trace propagation
+make lab-down         # Stop lab stack
+```

@@ -1,0 +1,38 @@
+# Virtual environments and dependencies
+.venv
+**/.venv
+node_modules
+**/node_modules
+
+# Git metadata
+.git
+
+# Python cache & bytecode
+__pycache__
+**/__pycache__
+*.pyc
+**/*.pyc
+
+# Tooling and test caches
+.mypy_cache
+**/.mypy_cache
+.pytest_cache
+**/.pytest_cache
+.ruff_cache
+**/.ruff_cache
+
+# Evaluation runs and docs
+evals/results
+docs
+
+# Web app source and assets
+apps/web
+
+# Markdown documentation (exclude all except build requirements)
+*.md
+**/*.md
+!README.md
+
+# Environment secrets
+.env
+.env.*

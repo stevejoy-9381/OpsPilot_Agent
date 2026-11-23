@@ -5,6 +5,7 @@ Modern cloud-native systems face complex production incidents where critical dia
 
 ---
 
+
 ### Architecture at a Glance
 
 ```
@@ -137,7 +138,19 @@ make reset
   - Provider-isolated LLM adapter with Google GenAI SDK, offline deterministic replay client, retry/backoff, and token budget guard
   - Alembic baseline migrations wired to `DATABASE_URL`
   - GitHub Actions CI workflow and pre-commit secret scanning hooks
-- [ ] **Feature 1: Lab & Fault Controller** (Toy microservices, seeded anomalies, and broker action isolation)
+- [x] **Feature 1: Synthetic Microservice Lab & Evaluation Substrate Complete**
+  - Toy microservices (`gateway`, `orders`, `inventory`) with W3C trace propagation, connection pool limits, and telemetry
+  - Telemetry collection: Prometheus scraping (5s), OpenTelemetry collector exporting JSONL spans, and correlated structured JSON logs
+  - In-process deploy and rollback primitives (`lab.controller_lib`) with version profiles (`v1.0.0`-`v1.3.0`) and non-incriminating diffs
+  - Open-loop load generator (`lab.loadgen`) with deterministic Zipf product distributions and named YAML profiles
+  - Segregated scenario controller on `lab-admin` and isolated SQLite Ground-Truth Vault (`vault.db`) with token protection
+  - Formal scenario schema and 5 scenario definitions (`S1`-`S5`) covering all failure families
+  - Deterministic evaluation graders (`evals/graders/`) for diagnosis, evidence support, recovery, and safety
+  - Zero-leakage evidence exporter (`scripts/export_evidence.py`) and leak test suite
+  - Blind diagnosis kit (`scripts/blind_kit.py`), verified human diagnosis log, and evidence requirements contract ([docs/evidence_requirements.md](docs/evidence_requirements.md))
+  - Full lab architecture, version profiles, and failure signature report ([docs/LAB_REPORT.md](docs/LAB_REPORT.md))
+  - End-to-end scenario lifecycle test suite (`tests/lab_e2e`) with fast CI and nightly workflows
+  - Lab management targets: `make lab-up`, `make lab-down`, `make lab-smoke`
 - [ ] **Feature 2: Evidence Gathering & Diagnosis Agent** (LangGraph workflow nodes, bounded read tools)
 - [ ] **Feature 3: Exact-Plan Review UI & Execution Broker** (Cryptographic plan hashing, human approval gate)
 - [ ] **Feature 4: Independent Verification & Escalation Engine** (Outcome proof, rollback on degradation)

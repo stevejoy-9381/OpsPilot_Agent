@@ -57,7 +57,7 @@ jobs:
         run: uv run ruff check .
 
       - name: Typecheck with Mypy
-        run: uv run mypy apps agent tests
+        run: uv run mypy apps agent lab tests
 
       - name: Run Alembic baseline migration
         env:

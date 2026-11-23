@@ -1,0 +1,33 @@
+name: Lab Nightly & Manual Scenarios E2E
+
+on:
+  schedule:
+    - cron: "0 2 * * *"  # Nightly at 02:00 UTC
+  workflow_dispatch:      # Manual trigger
+
+permissions:
+  contents: read
+
+jobs:
+  lab-e2e:
+    name: Full Lab E2E Scenarios (S1-S5)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5.2.1
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run full lab scenarios E2E suite
+        run: uv run pytest -v -m lab tests/lab_e2e

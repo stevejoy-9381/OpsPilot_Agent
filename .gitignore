@@ -34,6 +34,8 @@ volumes/
 *.sqlite
 *.sqlite3
 *.db
+blind_packets/
+scratch/
 
 # Editor / OS
 .idea/
