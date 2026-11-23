@@ -1,0 +1,57 @@
+profiles:
+  steady_20rps:
+    profile_id: "steady_20rps"
+    type: "steady"
+    rps: 20.0
+    seed: 7
+    description: "Steady 20 requests/sec load test"
+
+  steady_10rps:
+    profile_id: "steady_10rps"
+    type: "steady"
+    rps: 10.0
+    seed: 42
+    description: "Baseline steady 10 requests/sec load"
+
+  steady_50rps:
+    profile_id: "steady_50rps"
+    type: "steady"
+    rps: 50.0
+    seed: 42
+    description: "High throughput 50 requests/sec load"
+
+  burst_5x:
+    profile_id: "burst_5x"
+    type: "burst"
+    baseline_rps: 10.0
+    spike_multiplier: 5.0
+    spike_duration_s: 15.0
+    spike_start_s: 20.0
+    seed: 7
+    description: "Baseline 10 rps with 5x spike (50 rps) for 15s starting at t=20s"
+
+  burst_spike:
+    profile_id: "burst_spike"
+    type: "burst"
+    baseline_rps: 5.0
+    spike_multiplier: 4.0
+    spike_duration_s: 10.0
+    spike_start_s: 15.0
+    seed: 42
+    description: "Baseline 5 rps with 4x spike (20 rps) for 10s starting at t=15s"
+
+  ramp_load:
+    profile_id: "ramp_load"
+    type: "ramp"
+    start_rps: 5.0
+    end_rps: 40.0
+    seed: 7
+    description: "Linear ramp from 5 requests/sec up to 40 requests/sec"
+
+  ramp_10_50:
+    profile_id: "ramp_10_50"
+    type: "ramp"
+    start_rps: 10.0
+    end_rps: 50.0
+    seed: 42
+    description: "Linear ramp from 10 rps to 50 rps"
