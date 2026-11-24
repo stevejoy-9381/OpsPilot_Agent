@@ -16,7 +16,7 @@ import uuid
 from collections.abc import Generator
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Callable
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import Engine, create_engine, select

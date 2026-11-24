@@ -1,12 +1,22 @@
 
+from typing import Any
+
 from fastapi import FastAPI
 from opentelemetry import trace
+
 try:
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+    import opentelemetry.instrumentation.fastapi as _otel_fastapi
+
+    FastAPIInstrumentor: Any = _otel_fastapi.FastAPIInstrumentor
 except ImportError:
-    FastAPIInstrumentor = None  # type: ignore[assignment, misc]
-    HTTPXClientInstrumentor = None  # type: ignore[assignment, misc]
+    FastAPIInstrumentor = None
+
+try:
+    import opentelemetry.instrumentation.httpx as _otel_httpx
+
+    HTTPXClientInstrumentor: Any = _otel_httpx.HTTPXClientInstrumentor
+except ImportError:
+    HTTPXClientInstrumentor = None
 from opentelemetry.propagate import set_global_textmap
 from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
 from opentelemetry.sdk.trace import TracerProvider
