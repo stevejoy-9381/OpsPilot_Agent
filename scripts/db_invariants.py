@@ -16,7 +16,10 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import psycopg
 from psycopg.rows import dict_row
@@ -128,8 +131,15 @@ def check_invariants() -> int:
             mismatched_observations = []
 
             for obs in observations:
-                data = obs["payload"] if obs["payload"] is not None else obs["payload_ref"]
-                recomputed = compute_content_hash(data)
+                payload = obs["payload"]
+                payload_ref = obs["payload_ref"]
+                if payload_ref and Path(payload_ref).exists():
+                    try:
+                        import json
+                        payload = json.loads(Path(payload_ref).read_text(encoding="utf-8"))
+                    except Exception:
+                        pass
+                recomputed = compute_content_hash(payload if payload is not None else payload_ref)
                 if recomputed != obs["content_hash"]:
                     mismatched_observations.append({
                         "id": obs["id"],

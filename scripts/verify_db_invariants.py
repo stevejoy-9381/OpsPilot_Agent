@@ -1,5 +1,10 @@
 """Script to execute each failing statement and capture exact Postgres error messages."""
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import uuid
 
 import psycopg

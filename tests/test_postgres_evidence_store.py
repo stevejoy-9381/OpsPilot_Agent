@@ -234,26 +234,33 @@ def test_verify_run_evidence_clean_and_tampered(session_factory, tenant_and_run,
     pg_store.put(rec1)
     pg_store.put(rec2)
 
-    # 1. Clean verification report
-    report = verify_run_evidence(run_id=run_id, tenant_id=tenant_id)
-    assert report["clean"] is True
-    assert report["total_records"] == 2
-    assert len(report["mismatches"]) == 0
+    try:
+        # 1. Clean verification report
+        report = verify_run_evidence(run_id=run_id, tenant_id=tenant_id)
+        assert report["clean"] is True
+        assert report["total_records"] == 2
+        assert len(report["mismatches"]) == 0
 
-    # 2. Tampering test: simulate an out-of-band row update (bypassing append-only via migrator)
-    with psycopg.connect(RAW_PG_URL, autocommit=True) as conn:
-        with conn.cursor() as cur:
-            # Temporarily disable append-only trigger for this tampering test
-            cur.execute("ALTER TABLE app.observations DISABLE TRIGGER trg_observations_append_only")
-            cur.execute(
-                "UPDATE app.observations SET payload = '{\"status\": \"red_tampered\"}'::jsonb WHERE evidence_id = 'ev_v1'"
-            )
-            cur.execute("ALTER TABLE app.observations ENABLE TRIGGER trg_observations_append_only")
+        # 2. Tampering test: simulate an out-of-band row update (bypassing append-only via migrator)
+        with psycopg.connect(RAW_PG_URL, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                # Temporarily disable append-only trigger for this tampering test
+                cur.execute("ALTER TABLE app.observations DISABLE TRIGGER trg_observations_append_only")
+                cur.execute(
+                    "UPDATE app.observations SET payload = '{\"status\": \"red_tampered\"}'::jsonb WHERE evidence_id = 'ev_v1'"
+                )
+                cur.execute("ALTER TABLE app.observations ENABLE TRIGGER trg_observations_append_only")
 
-    # 3. Report flags tampered evidence
-    tampered_report = verify_run_evidence(run_id=run_id, tenant_id=tenant_id)
-    assert tampered_report["clean"] is False
-    assert len(tampered_report["mismatches"]) == 1
-    mismatch = tampered_report["mismatches"][0]
-    assert mismatch["evidence_id"] == "ev_v1"
-    assert mismatch["stored_hash"] != mismatch["expected_hash"]
+        # 3. Report flags tampered evidence
+        tampered_report = verify_run_evidence(run_id=run_id, tenant_id=tenant_id)
+        assert tampered_report["clean"] is False
+        assert len(tampered_report["mismatches"]) == 1
+        mismatch = tampered_report["mismatches"][0]
+        assert mismatch["evidence_id"] == "ev_v1"
+        assert mismatch["stored_hash"] != mismatch["expected_hash"]
+    finally:
+        with psycopg.connect(RAW_PG_URL, autocommit=True) as conn:
+            with conn.cursor() as cur:
+                cur.execute("ALTER TABLE app.observations DISABLE TRIGGER trg_observations_append_only")
+                cur.execute("DELETE FROM app.observations WHERE run_id = %s", (run_id,))
+                cur.execute("ALTER TABLE app.observations ENABLE TRIGGER trg_observations_append_only")
