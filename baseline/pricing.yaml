@@ -1,0 +1,31 @@
+# =============================================================================
+# OpsPilot Model Pricing Configuration
+# =============================================================================
+# Checked on: 2026-11-24
+#
+# NOTE: Prices per 1,000,000 tokens (USD).
+# Standard Gemini API pay-as-you-go pricing estimates.
+# TODO: User to verify current Gemini pricing against Google Cloud / AI Studio pricing page.
+# =============================================================================
+
+checked_on: "2026-11-24"
+unverified: true
+todo_note: "TODO: Verify current Gemini pricing against official Google Cloud / Gemini API pricing page."
+currency: "USD"
+
+models:
+  gemini-2.0-flash:
+    input_cost_per_1m: 0.10
+    output_cost_per_1m: 0.40
+  gemini-2.5-flash:
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.60
+  gemini-1.5-flash:
+    input_cost_per_1m: 0.075
+    output_cost_per_1m: 0.30
+  gemini-1.5-pro:
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 5.00
+  default:
+    input_cost_per_1m: 0.10
+    output_cost_per_1m: 0.40
