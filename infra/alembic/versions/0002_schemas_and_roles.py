@@ -141,7 +141,12 @@ def downgrade() -> None:
             DO $$
             BEGIN
                 IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '{role_name}') THEN
-                    DROP ROLE {role_name};
+                    BEGIN
+                        DROP ROLE {role_name};
+                    EXCEPTION WHEN dependent_objects_still_exist THEN
+                        -- Role is still referenced by objects in other cluster databases
+                        NULL;
+                    END;
                 END IF;
             END
             $$;
