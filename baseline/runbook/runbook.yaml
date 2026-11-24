@@ -1,0 +1,77 @@
+# =============================================================================
+# OpsPilot Generic SRE On-Call Runbook (Baseline B1)
+# =============================================================================
+#
+# DESIGN & FAIRNESS CONSTRAINTS:
+# 1. Generic on-call flowchart logic written from first principles.
+# 2. Rules evaluate in strict order: first matching rule wins.
+# 3. Uses strictly Feature 2 read tools via dispatch within a hard budget of 4 calls.
+# 4. Zero access to scenario manifests, vault, or controller internals.
+#
+# RULES:
+# - R1: Latency or error alert on service X AND deploy to X in last 30m -> rollback X.
+# - R2: Error or latency alert on service X, no recent deploy to X, and downstream
+#       dependency elevated -> restart elevated dependency service.
+# - R3: Saturation alert on X (db_pool_in_use) with deploy to X in last 60m -> rollback X.
+# - R4: Alert metric resolved before evaluation completes -> no_action.
+# - R5: Otherwise -> escalate to human operator.
+# =============================================================================
+
+runbook_rules:
+  - id: R1
+    name: "Recent Deploy Correlation for Latency/Error"
+    description: "Latency or error alert on service X with a deployment to X within 30 minutes."
+    match_alert_categories: ["error", "latency"]
+    max_deploy_age_seconds: 1800
+    action: "rollback_service"
+    target: "alert_service"
+    diagnosis:
+      category: "bad_deploy"
+      mechanism: "software_defect"
+      confidence: 0.85
+
+  - id: R2
+    name: "Downstream Dependency Failure"
+    description: "Error or latency alert on service X, no recent deploy to X, and downstream dependency elevated."
+    match_alert_categories: ["error", "latency"]
+    no_deploy_seconds: 1800
+    check_downstream: true
+    action: "restart_service"
+    target: "elevated_service"
+    diagnosis:
+      category: "dependency_failure"
+      mechanism: "dependency_timeout"
+      confidence: 0.80
+
+  - id: R3
+    name: "Resource Saturation Deploy Correlation"
+    description: "Saturation alert on service X (db_pool_in_use) with a deploy to X in last 60 minutes."
+    match_alert_categories: ["saturation"]
+    max_deploy_age_seconds: 3600
+    action: "rollback_service"
+    target: "alert_service"
+    diagnosis:
+      category: "bad_deploy"
+      mechanism: "connection_pool_exhaustion"
+      confidence: 0.85
+
+  - id: R4
+    name: "Transient Alert Resolution"
+    description: "Alert metric has returned to healthy baseline during evaluation."
+    check_resolved: true
+    action: "no_action"
+    target: null
+    diagnosis:
+      category: "false_alarm"
+      mechanism: "none"
+      confidence: 0.90
+
+  - id: R5
+    name: "Default Escalation"
+    description: "No deterministic rule matched. Escalate incident to human on-call engineer."
+    action: "escalate"
+    target: null
+    diagnosis:
+      category: "unknown"
+      mechanism: "unknown"
+      confidence: 0.0
