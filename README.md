@@ -151,6 +151,15 @@ make reset
   - Full lab architecture, version profiles, and failure signature report ([docs/LAB_REPORT.md](docs/LAB_REPORT.md))
   - End-to-end scenario lifecycle test suite (`tests/lab_e2e`) with fast CI and nightly workflows
   - Lab management targets: `make lab-up`, `make lab-down`, `make lab-smoke`
-- [ ] **Feature 2: Evidence Gathering & Diagnosis Agent** (LangGraph workflow nodes, bounded read tools)
+- [x] **Feature 2: Bounded Read Tools & Evidence Store Complete**
+  - Bounded read tools: `get_metrics`, `search_logs`, `get_trace`, `list_deploys`, `get_deploy_diff`
+  - Untrusted data quarantine with closing tag escape and prompt-injection detection
+  - Secret redaction across tools and persistence (`[REDACTED:<type>]`)
+  - Server-side tool registry with model-facing schema generation, call budget enforcement ($\le 8$), and duplicate-call caching
+  - Telemetry backends (`SnapshotBackend` for offline/evals, `LiveBackend` with fixed PromQL templates)
+  - Append-only JSONL evidence store with tenant/run isolation
+  - 8-case adversarial and security test suite ([tests/test_tools_adversarial.py](tests/test_tools_adversarial.py))
+  - Deterministic scripted investigator proof (5/5 scenarios diagnosed within budget, [docs/tool_eval_report.md](docs/tool_eval_report.md))
+  - Full tool inventory and guarantees report ([docs/TOOLS_REPORT.md](docs/TOOLS_REPORT.md))
 - [ ] **Feature 3: Exact-Plan Review UI & Execution Broker** (Cryptographic plan hashing, human approval gate)
 - [ ] **Feature 4: Independent Verification & Escalation Engine** (Outcome proof, rollback on degradation)

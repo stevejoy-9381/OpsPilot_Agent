@@ -1,5 +1,9 @@
 # Evidence Requirements Specification
 
+> [!NOTE]
+> **CLASSIFICATION: SYNTHETIC-HANDWRITTEN**
+> These requirements are derived from offline blind diagnosis experiments on **SYNTHETIC-HANDWRITTEN** packet fixtures, documenting the minimum telemetry signals needed by human investigators.
+
 This document defines the minimum observational signals required by an investigator
 (human or autonomous agent) to diagnose each failure family unambiguously.
 These requirements establish the contract for the Feature 2 Investigation Tooling.

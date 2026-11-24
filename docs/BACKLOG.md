@@ -33,7 +33,21 @@ Deferred ideas, future enhancements, and follow-ups identified during architectu
 
 ---
 
-## Agent & Review UI (Features 2-4 Planning)
+## Read Tools & Evidence (Feature 2 Follow-ups)
+
+1. **Persistent PostgreSQL `observations` Storage**:
+   - *Context*: Feature 2 implements `InMemoryEvidenceStore` and `JsonlEvidenceStore`.
+   - *Idea*: Migrate evidence audit records into permanent PostgreSQL `observations` table during Feature 4 persistence milestone.
+   - *Status*: Slated for Feature 4.
+
+2. **Distributed Trace Visualizer in Review UI**:
+   - *Context*: `get_trace` provides precomputed critical paths and collapsed span trees via CLI/API.
+   - *Idea*: Add a visual waterfall chart component in React UI using the `SpanNode` schema.
+   - *Status*: Slated for Feature 3 UI enhancements.
+
+---
+
+## Agent & Review UI (Features 3-4 Planning)
 
 1. **LangGraph Tool Budgeting Engine**:
    - Enforce hard limits on tool invocations (max Prometheus range queries, max trace lookups) per diagnosis step to prevent token explosion.

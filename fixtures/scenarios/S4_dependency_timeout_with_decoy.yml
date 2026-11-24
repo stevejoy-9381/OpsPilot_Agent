@@ -1,3 +1,4 @@
+# [SYNTHETIC-HANDWRITTEN] Scenario fixture definition
 scenario_id: S4
 family: dependency_timeout_with_decoy
 variant: redis_timeout_orders_decoy

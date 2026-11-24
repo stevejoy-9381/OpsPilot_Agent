@@ -1,3 +1,4 @@
+# [SYNTHETIC-HANDWRITTEN] Scenario fixture definition
 scenario_id: S2
 family: latency_regression
 variant: inventory_cache_bypass_audit

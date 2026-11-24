@@ -71,7 +71,7 @@ jobs:
           POSTGRES_USER: opspilot
           POSTGRES_PASSWORD: opspilot_dev_password
           POSTGRES_DB: opspilot
-        run: uv run pytest -v
+        run: uv run pytest -v -m "not lab"
 
   frontend:
     name: Frontend Lint and Test

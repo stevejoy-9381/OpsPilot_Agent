@@ -1,3 +1,4 @@
+# [SYNTHETIC-HANDWRITTEN] Scenario fixture definition
 scenario_id: S1
 family: pool_leak
 variant: orders_conflict_exhaustion
