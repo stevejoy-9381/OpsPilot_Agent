@@ -483,11 +483,14 @@ def test_core_network_isolation_live_docker() -> None:
     2. Attempt to reach controller API -> Must fail (host resolution / timeout).
     3. Attempt to reach /admin routes on lab services -> Must fail.
     """
-    docker_check = subprocess.run(
-        ["docker", "network", "inspect", "opspilot_core"],
-        capture_output=True,
-        text=True,
-    )
+    try:
+        docker_check = subprocess.run(
+            ["docker", "network", "inspect", "opspilot_core"],
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        pytest.skip("Docker CLI is not available in test environment")
     if docker_check.returncode != 0:
         pytest.skip("Docker opspilot_core network is not available in test environment")
 

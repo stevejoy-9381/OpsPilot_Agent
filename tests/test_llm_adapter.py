@@ -6,7 +6,7 @@ import pytest
 from pydantic import BaseModel, Field, SecretStr
 
 from agent.llm.fake import FakeLLMClient
-from agent.llm.gemini import GeminiClient, errors
+from agent.llm.gemini import GeminiClient, _GENAI_AVAILABLE, errors
 from agent.llm.interface import (
     BudgetExceededError,
     Message,
@@ -137,6 +137,12 @@ def test_fake_llm_budget_guard_exceeded() -> None:
 
 
 # 2. GeminiClient tests (unit with mocked API)
+
+
+@pytest.fixture(autouse=True)
+def require_genai(request: pytest.FixtureRequest) -> None:
+    if "gemini" in request.node.name.lower() and not _GENAI_AVAILABLE:
+        pytest.skip("google-genai is not installed in the environment")
 
 
 def test_gemini_client_structured_success() -> None:
