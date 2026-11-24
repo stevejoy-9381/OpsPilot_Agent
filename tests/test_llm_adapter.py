@@ -6,7 +6,7 @@ import pytest
 from pydantic import BaseModel, Field, SecretStr
 
 from agent.llm.fake import FakeLLMClient
-from agent.llm.gemini import GeminiClient, _GENAI_AVAILABLE, errors
+from agent.llm.gemini import _GENAI_AVAILABLE, GeminiClient, errors
 from agent.llm.interface import (
     BudgetExceededError,
     Message,
