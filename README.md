@@ -108,6 +108,31 @@ make reset
 
 ---
 
+### Baseline Results Summary
+
+The baseline ladder measures non-agent performance across three benchmark rungs on scenarios S1–S5 (see full details in [docs/baseline_report.md](docs/baseline_report.md) and design in [docs/baseline_design.md](docs/baseline_design.md)):
+- **B0 (Alert-Only)**: Fires on threshold breach and reflexively escalates to human on-call without investigation.
+- **B1 (Deterministic Runbook)**: Fixed 5-rule engineering flowchart using at most 4 bounded tool calls (zero LLM).
+- **B2 (No-Tools LLM)**: Single structured Gemini call receiving only the alert and static architecture description (zero investigative tools or telemetry queries).
+
+#### Benchmark Totals (Numerator / Denominator)
+
+| Variant | Diagnosis Correct | Diagnosis Partial | Diagnosis Abstained | Action Correct | Unnecessary Actions | Provider Errors |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **B0** | 0/5 | 0/5 | 5/5 | 0/5 | 0/5 | 0/5 |
+| **B1** | 3/5 | 2/5 | 0/5 | 5/5 | 0/5 | 0/5 |
+| **B2** | 0/5 | 0/5 | 0/5 | 0/5 | 0/5 | 5/5 |
+
+*Note: B2 live runs encountered 5/5 provider errors because `GEMINI_API_KEY` was not configured in the test environment (counted strictly as provider errors, never marked as wrong diagnoses). Deterministic offline behavior is validated via `FakeLLMClient`.*
+
+#### Honest Benchmark Limitations
+1. **Development Set Only**: All five scenarios (S1–S5) are development cases; the sealed test split is assigned in Feature 13.
+2. **Small Sample Size ($N=5$)**: Five incidents cannot establish statistical significance ($p < 0.05$) or tight confidence intervals.
+3. **Dry-Run Actions**: Evaluated against canonical expectations; no active container mutations were executed.
+4. **Pre-Committed Gate**: The agent value gate ([docs/agent_value_gate.md](docs/agent_value_gate.md)) was committed **before** the agent exists.
+
+---
+
 ### Development Commands
 
 | Target | Command | Purpose |
@@ -161,5 +186,13 @@ make reset
   - 8-case adversarial and security test suite ([tests/test_tools_adversarial.py](tests/test_tools_adversarial.py))
   - Deterministic scripted investigator proof (5/5 scenarios diagnosed within budget, [docs/tool_eval_report.md](docs/tool_eval_report.md))
   - Full tool inventory and guarantees report ([docs/TOOLS_REPORT.md](docs/TOOLS_REPORT.md))
-- [ ] **Feature 3: Exact-Plan Review UI & Execution Broker** (Cryptographic plan hashing, human approval gate)
-- [ ] **Feature 4: Independent Verification & Escalation Engine** (Outcome proof, rollback on degradation)
+- [x] **Feature 3: Baseline Evaluation Ladder & Pre-Commitment Gate Complete**
+  - Baseline ladder variants: B0 (alert-only / escalate), B1 (deterministic 5-rule runbook with bounded tools), B2 (no-tools structured LLM prompt)
+  - Deterministic Prometheus threshold alert evaluator ([baseline/alerts/](baseline/alerts/)) tuned solely against healthy baseline traffic
+  - Fixed action vocabulary in [shared/actions.py](shared/actions.py) (`rollback_service`, `restart_service`, `no_action`, `escalate`) with 4-way grading (`correct`, `unnecessary`, `wrong-target`, `missing`)
+  - Frozen and committed B1 runbook hash (`26d4a361...`) and B2 prompt hash (`b4290a1a...`) committed before first benchmark run
+  - Automated evaluation runner ([evals/baseline_runner.py](evals/baseline_runner.py)) with strict isolation, dry-run safety, and fraction reporting
+  - Committed Agent Value Gate targets ([docs/agent_value_gate.md](docs/agent_value_gate.md)) frozen before the agent exists
+  - Full baseline evaluation report ([docs/baseline_report.md](docs/baseline_report.md))
+- [ ] **Feature 4: Exact-Plan Review UI & Execution Broker** (Cryptographic plan hashing, human approval gate)
+- [ ] **Feature 5: Independent Verification & Escalation Engine** (Outcome proof, rollback on degradation)

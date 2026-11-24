@@ -47,7 +47,26 @@ Deferred ideas, future enhancements, and follow-ups identified during architectu
 
 ---
 
-## Agent & Review UI (Features 3-4 Planning)
+## Baseline Evaluation Ladder (Feature 3 Follow-ups)
+
+1. **Apply-and-Verify Mode for Baselines**:
+   - *Context*: Baselines B0, B1, and B2 are currently evaluated in dry-run mode against canonical ground truth.
+   - *Idea*: Connect the baseline ladder to the real execution broker and Oracle recovery verifier (requires Feature 10) to physically execute baseline recommendations in live container environments and measure actual MTTR and service recovery rate.
+   - *Status*: Slated for Feature 10.
+
+2. **Three-Trial Multi-Sampling for Live B2 (Gemini)**:
+   - *Context*: Initial B2 live baseline benchmark was specified with `trials=1`.
+   - *Idea*: Run 3 trials per scenario (`--trials 3`) with temperature sampling variations or confidence intervals once live Gemini API key quotas are provisioned in the evaluation environment.
+   - *Status*: Slated for Feature 13 / pre-release benchmarking.
+
+3. **Final Comparison on 60-Case Benchmark Set (Feature 13)**:
+   - *Context*: Development benchmarking was performed against the initial 5 scenarios (S1–S5).
+   - *Idea*: Benchmark B0, B1, B2, and the full OpsPilot agent across the complete 60-incident sealed evaluation suite under Feature 13 to prove the agent value gate with statistical significance.
+   - *Status*: Slated for Feature 13.
+
+---
+
+## Agent & Review UI (Features 4+ Planning)
 
 1. **LangGraph Tool Budgeting Engine**:
    - Enforce hard limits on tool invocations (max Prometheus range queries, max trace lookups) per diagnosis step to prevent token explosion.

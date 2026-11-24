@@ -57,7 +57,7 @@ jobs:
         run: uv run ruff check .
 
       - name: Typecheck with Mypy
-        run: uv run mypy apps agent lab tests
+        run: uv run mypy apps agent lab tools baseline shared evals tests
 
       - name: Run Alembic baseline migration
         env:
@@ -71,7 +71,10 @@ jobs:
           POSTGRES_USER: opspilot
           POSTGRES_PASSWORD: opspilot_dev_password
           POSTGRES_DB: opspilot
-        run: uv run pytest -v -m "not lab"
+        run: uv run pytest -v -m "not lab and not live"
+
+      - name: Run offline baseline evaluation harness
+        run: uv run python -m evals.baseline_runner --variants b0,b1,b2 --scenarios all --trials 1 --offline
 
   frontend:
     name: Frontend Lint and Test

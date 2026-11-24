@@ -316,6 +316,7 @@ def test_no_llm_dependency() -> None:
     import baseline.b1_runbook as b1_mod
 
     for mod in [b0_mod, b1_mod]:
+        assert mod.__file__ is not None
         src = Path(mod.__file__).read_text(encoding="utf-8")
         assert "FakeLLMClient" not in src
         assert "google.genai" not in src

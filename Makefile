@@ -7,7 +7,7 @@ lint:
 	uv run ruff check .
 
 typecheck:
-	uv run mypy apps agent lab tools tests
+	uv run mypy apps agent lab tools baseline shared evals tests
 
 test:
 	uv run pytest -v
