@@ -1,9 +1,19 @@
+from __future__ import annotations
+
 import time
 import uuid
-from typing import TypeVar
+from typing import Any, TypeVar
 
-from google import genai
-from google.genai import errors, types
+try:
+    from google import genai
+    from google.genai import errors, types
+
+    _GENAI_AVAILABLE = True
+except (ImportError, AttributeError):
+    genai: Any = None  # type: ignore[no-redef]
+    errors: Any = None  # type: ignore[no-redef]
+    types: Any = None  # type: ignore[no-redef]
+    _GENAI_AVAILABLE = False
 from pydantic import BaseModel, SecretStr, ValidationError
 
 from agent.llm.interface import (
@@ -28,12 +38,12 @@ TRANSIENT_STATUS_CODES = {408, 429, 500, 502, 503, 504}
 
 
 def _is_transient_error(exc: Exception) -> bool:
-    if isinstance(exc, errors.APIError):
+    if errors is not None and isinstance(exc, errors.APIError):
         if exc.code in TRANSIENT_STATUS_CODES:
             return True
         if exc.status in ("RESOURCE_EXHAUSTED", "UNAVAILABLE", "DEADLINE_EXCEEDED"):
             return True
-    if isinstance(exc, (TimeoutError, errors.ServerError)):
+    if errors is not None and isinstance(exc, (TimeoutError, errors.ServerError)):
         return True
     return False
 
@@ -41,7 +51,7 @@ def _is_transient_error(exc: Exception) -> bool:
 def _is_timeout_error(exc: Exception) -> bool:
     if isinstance(exc, TimeoutError):
         return True
-    if isinstance(exc, errors.APIError):
+    if errors is not None and isinstance(exc, errors.APIError):
         if exc.code == 408 or exc.status == "DEADLINE_EXCEEDED":
             return True
     return False
@@ -60,6 +70,12 @@ class GeminiClient(LLMClient):
         initial_backoff_s: float = 1.0,
         backoff_multiplier: float = 2.0,
     ) -> None:
+        if not _GENAI_AVAILABLE or genai is None:
+            raise ImportError(
+                "The 'google-genai' package is required to use GeminiClient. "
+                "Please install it with: pip install google-genai"
+            )
+
         self.model_name = model_name
         self.budget_guard = budget_guard
         self.max_retries = max_retries

@@ -1,0 +1,69 @@
+{
+  "scenario_id": "S2",
+  "variant": "b0",
+  "trial": 1,
+  "alert": {
+    "alert_id": "alt_2b1f9c567c3a",
+    "fired_at": "2026-11-24T10:00:45Z",
+    "service": "inventory",
+    "rule_id": "inventory_latency_p95_high",
+    "metric": "latency_p95",
+    "threshold": 0.15,
+    "observed_value": 0.35,
+    "window_seconds": 15,
+    "severity": "WARNING",
+    "status": "firing",
+    "resolved_at": null
+  },
+  "diagnosis": {
+    "root_cause_service": null,
+    "root_cause_category": "unknown",
+    "mechanism": "unknown",
+    "culprit_deploy_id": null,
+    "evidence_ids": [],
+    "confidence": 0.0
+  },
+  "action": {
+    "action": "escalate",
+    "service": null,
+    "rationale_ids": [],
+    "notes": "B0: Threshold alert fired. Reflexive immediate escalation to human on-call."
+  },
+  "grades": {
+    "diagnosis": {
+      "grade": "abstained",
+      "is_correct": false,
+      "is_partial": false,
+      "is_wrong": false,
+      "is_abstained": true,
+      "reasons": [
+        "Agent explicitly abstained from diagnosis (unknown category or mechanism)"
+      ]
+    },
+    "action": {
+      "correct": false,
+      "unnecessary": false,
+      "wrong_target": false,
+      "missing": true,
+      "reasons": [
+        "Missing action: expected 'rollback_service' on 'inventory', but action was escalated to human operator."
+      ]
+    }
+  },
+  "tool_calls": [],
+  "tokens": {
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "total": 0
+  },
+  "latency_ms": 0.0,
+  "completion_time_seconds": 0.0,
+  "execution_wall_seconds": 0.0,
+  "cost_estimate": 0.0,
+  "errors": null,
+  "prompt_hash": null,
+  "runbook_hash": null,
+  "model_settings": {},
+  "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+  "harness_version": "1.0.0"
+}

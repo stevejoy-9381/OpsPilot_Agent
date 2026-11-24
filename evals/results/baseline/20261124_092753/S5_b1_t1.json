@@ -1,0 +1,72 @@
+{
+  "scenario_id": "S5",
+  "variant": "b1",
+  "trial": 1,
+  "alert": {
+    "alert_id": "alt_0b8ab37aacc4",
+    "fired_at": "2026-11-24T10:00:45Z",
+    "service": "orders",
+    "rule_id": "orders_db_pool_saturation",
+    "metric": "db_pool_in_use",
+    "threshold": 7.0,
+    "observed_value": 8.5,
+    "window_seconds": 15,
+    "severity": "CRITICAL",
+    "status": "resolved",
+    "resolved_at": "2026-11-24T10:01:00Z"
+  },
+  "diagnosis": {
+    "root_cause_service": null,
+    "root_cause_category": "false_alarm",
+    "mechanism": "none",
+    "culprit_deploy_id": null,
+    "evidence_ids": [],
+    "confidence": 0.9
+  },
+  "action": {
+    "action": "no_action",
+    "service": null,
+    "rationale_ids": [],
+    "notes": "R4: Alert resolved before evaluation completed; no action needed"
+  },
+  "grades": {
+    "diagnosis": {
+      "grade": "correct",
+      "is_correct": true,
+      "is_partial": false,
+      "is_wrong": false,
+      "is_abstained": false,
+      "reasons": [
+        "Diagnosis fully matches ground truth across service, category, mechanism, and culprit"
+      ]
+    },
+    "action": {
+      "correct": true,
+      "unnecessary": false,
+      "wrong_target": false,
+      "missing": false,
+      "reasons": [
+        "Action 'no_action' on target 'None' matches expected."
+      ]
+    }
+  },
+  "tool_calls": [
+    "list_deploys",
+    "get_metrics"
+  ],
+  "tokens": {
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "total": 0
+  },
+  "latency_ms": 1.0,
+  "completion_time_seconds": 0.0,
+  "execution_wall_seconds": 0.001,
+  "cost_estimate": 0.0,
+  "errors": null,
+  "prompt_hash": null,
+  "runbook_hash": "26d4a36121ab47a27b898b92003863c78a139184c51ec5d93dc04edb123b0e0a",
+  "model_settings": {},
+  "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+  "harness_version": "1.0.0"
+}

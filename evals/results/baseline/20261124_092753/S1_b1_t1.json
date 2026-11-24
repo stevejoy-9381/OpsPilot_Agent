@@ -1,0 +1,75 @@
+{
+  "scenario_id": "S1",
+  "variant": "b1",
+  "trial": 1,
+  "alert": {
+    "alert_id": "alt_932c5e86cb84",
+    "fired_at": "2026-11-24T10:01:00Z",
+    "service": "orders",
+    "rule_id": "orders_db_pool_saturation",
+    "metric": "db_pool_in_use",
+    "threshold": 7.0,
+    "observed_value": 10.0,
+    "window_seconds": 15,
+    "severity": "CRITICAL",
+    "status": "firing",
+    "resolved_at": null
+  },
+  "diagnosis": {
+    "root_cause_service": "orders",
+    "root_cause_category": "bad_deploy",
+    "mechanism": "connection_pool_exhaustion",
+    "culprit_deploy_id": "deploy_orders_v130",
+    "evidence_ids": [
+      "ev_deploys_cac84ab8"
+    ],
+    "confidence": 0.85
+  },
+  "action": {
+    "action": "rollback_service",
+    "service": "orders",
+    "rationale_ids": [
+      "ev_deploys_cac84ab8"
+    ],
+    "notes": "R3: Rollback orders to resolve saturation from deploy deploy_orders_v130"
+  },
+  "grades": {
+    "diagnosis": {
+      "grade": "correct",
+      "is_correct": true,
+      "is_partial": false,
+      "is_wrong": false,
+      "is_abstained": false,
+      "reasons": [
+        "Diagnosis fully matches ground truth across service, category, mechanism, and culprit"
+      ]
+    },
+    "action": {
+      "correct": true,
+      "unnecessary": false,
+      "wrong_target": false,
+      "missing": false,
+      "reasons": [
+        "Action 'rollback_service' on target 'orders' matches expected."
+      ]
+    }
+  },
+  "tool_calls": [
+    "list_deploys"
+  ],
+  "tokens": {
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "total": 0
+  },
+  "latency_ms": 5.01,
+  "completion_time_seconds": 0.0,
+  "execution_wall_seconds": 0.005,
+  "cost_estimate": 0.0,
+  "errors": null,
+  "prompt_hash": null,
+  "runbook_hash": "26d4a36121ab47a27b898b92003863c78a139184c51ec5d93dc04edb123b0e0a",
+  "model_settings": {},
+  "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+  "harness_version": "1.0.0"
+}

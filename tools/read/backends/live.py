@@ -223,7 +223,7 @@ class LiveBackend(MetricsBackend, LogsBackend, TraceBackend, DeployBackend):
         service = "unknown"
         prev_ver = "v0.0.0"
         curr_ver = "v1.0.0"
-        files_changed = []
+        files_changed: list[str] = []
 
         if meta_file.exists():
             meta = json.loads(meta_file.read_text(encoding="utf-8"))

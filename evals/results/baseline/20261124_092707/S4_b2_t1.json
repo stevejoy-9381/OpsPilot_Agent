@@ -1,0 +1,73 @@
+{
+  "scenario_id": "S4",
+  "variant": "b2",
+  "trial": 1,
+  "alert": {
+    "alert_id": "alt_cc2ce95b2423",
+    "fired_at": "2026-11-24T10:01:00Z",
+    "service": "inventory",
+    "rule_id": "inventory_latency_p95_high",
+    "metric": "latency_p95",
+    "threshold": 0.15,
+    "observed_value": 0.35,
+    "window_seconds": 15,
+    "severity": "WARNING",
+    "status": "firing",
+    "resolved_at": null
+  },
+  "diagnosis": {
+    "root_cause_service": null,
+    "root_cause_category": "unknown",
+    "mechanism": "unknown",
+    "culprit_deploy_id": null,
+    "evidence_ids": [],
+    "confidence": 0.0
+  },
+  "action": {
+    "action": "escalate",
+    "service": null,
+    "rationale_ids": [],
+    "notes": "B2 schema_failure: 1 validation error for B2LLMResponse\ndiagnosis.culprit_deploy\n  Extra inputs are not permitted [type=extra_forbidden, input_value=None, input_type=NoneType]\n    For further information visit https://errors.pydantic.dev/2.14/v/extra_forbidden"
+  },
+  "grades": {
+    "diagnosis": {
+      "grade": "abstained",
+      "is_correct": false,
+      "is_partial": false,
+      "is_wrong": false,
+      "is_abstained": true,
+      "reasons": [
+        "Agent explicitly abstained from diagnosis (unknown category or mechanism)"
+      ]
+    },
+    "action": {
+      "correct": false,
+      "unnecessary": false,
+      "wrong_target": false,
+      "missing": true,
+      "reasons": [
+        "Missing action: expected 'restart_service' on 'redis', but action was escalated to human operator."
+      ]
+    }
+  },
+  "tool_calls": [],
+  "tokens": {
+    "tokens_in": 50,
+    "tokens_out": 30,
+    "total": 80
+  },
+  "latency_ms": 0.02,
+  "completion_time_seconds": 0.0,
+  "execution_wall_seconds": 0.002,
+  "cost_estimate": 1.7e-05,
+  "errors": "schema_failure",
+  "prompt_hash": "b4290a1a8c0e98a449c0d467dea0af953cc741e92f5137a9cd28a3bf3b6fa9ee",
+  "runbook_hash": null,
+  "model_settings": {
+    "model": "gemini-2.0-flash",
+    "temperature": 0.0,
+    "max_output_tokens": 1024
+  },
+  "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+  "harness_version": "1.0.0"
+}

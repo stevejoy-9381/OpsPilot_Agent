@@ -1,0 +1,82 @@
+{
+  "scenario_id": "S4",
+  "variant": "b1",
+  "trial": 1,
+  "alert": {
+    "alert_id": "alt_cc2ce95b2423",
+    "fired_at": "2026-11-24T10:01:00Z",
+    "service": "inventory",
+    "rule_id": "inventory_latency_p95_high",
+    "metric": "latency_p95",
+    "threshold": 0.15,
+    "observed_value": 0.35,
+    "window_seconds": 15,
+    "severity": "WARNING",
+    "status": "firing",
+    "resolved_at": null
+  },
+  "diagnosis": {
+    "root_cause_service": "redis",
+    "root_cause_category": "dependency_failure",
+    "mechanism": "dependency_timeout",
+    "culprit_deploy_id": null,
+    "evidence_ids": [
+      "ev_deploys_b9d0881e",
+      "ev_metric_99031649",
+      "ev_metric_e73b27e0"
+    ],
+    "confidence": 0.8
+  },
+  "action": {
+    "action": "restart_service",
+    "service": "redis",
+    "rationale_ids": [
+      "ev_deploys_b9d0881e",
+      "ev_metric_99031649",
+      "ev_metric_e73b27e0"
+    ],
+    "notes": "R2: Restart redis due to elevated downstream dependency latency"
+  },
+  "grades": {
+    "diagnosis": {
+      "grade": "partial",
+      "is_correct": false,
+      "is_partial": true,
+      "is_wrong": false,
+      "is_abstained": false,
+      "reasons": [
+        "Diagnosis partially matches: correct category with partial component attribution",
+        "Service mismatch: expected 'inventory', got 'redis'"
+      ]
+    },
+    "action": {
+      "correct": true,
+      "unnecessary": false,
+      "wrong_target": false,
+      "missing": false,
+      "reasons": [
+        "Action 'restart_service' on target 'redis' matches expected."
+      ]
+    }
+  },
+  "tool_calls": [
+    "list_deploys",
+    "get_metrics",
+    "get_metrics"
+  ],
+  "tokens": {
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "total": 0
+  },
+  "latency_ms": 7.71,
+  "completion_time_seconds": 0.0,
+  "execution_wall_seconds": 0.008,
+  "cost_estimate": 0.0,
+  "errors": null,
+  "prompt_hash": null,
+  "runbook_hash": "26d4a36121ab47a27b898b92003863c78a139184c51ec5d93dc04edb123b0e0a",
+  "model_settings": {},
+  "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+  "harness_version": "1.0.0"
+}

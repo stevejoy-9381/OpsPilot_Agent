@@ -1,0 +1,69 @@
+# =============================================================================
+# OpsPilot Deterministic Baseline Alerting Rules
+# =============================================================================
+#
+# METHODOLOGY & TUNING CONSTRAINTS:
+# These alert thresholds were tuned EXCLUSIVELY against healthy baseline traffic
+# (steady 20 RPS healthy run under golden v1.0.0 profiles with warm caches).
+#
+# STRICT RULE: Thresholds are NEVER tuned against incident data (S1-S5).
+# Tuning against incident data would constitute data snooping and invalidate
+# baseline evaluation validity.
+#
+# BASELINE MEASUREMENTS (Steady 20 RPS Healthy Run):
+# - gateway error_rate: 0.0% (mean: 0.0, max: 0.0)
+# - gateway latency_p95: ~35ms (mean: 0.035s, max: 0.048s)
+# - orders db_pool_in_use: 2 connections (mean: 2.0, max: 2.0 out of 10 max)
+# - inventory latency_p95: ~15ms (mean: 0.015s, max: 0.022s)
+#
+# THRESHOLD REASONING:
+# 1. gateway_error_rate_high (threshold: 0.05 / 5%):
+#    Provides headroom against isolated transient dropped packets while catching
+#    real downstream service degradation cascades promptly.
+# 2. gateway_latency_p95_high (threshold: 0.25s / 250ms):
+#    Set at ~5x healthy baseline (35-50ms). Accommodates normal variance while
+#    catching significant checkout path regressions.
+# 3. orders_db_pool_saturation (threshold: 7.0 connections):
+#    Healthy baseline uses 2.0 connections. Threshold of 7.0 connections (70%
+#    of pool capacity of 10) indicates severe queuing or connection saturation.
+# 4. inventory_latency_p95_high (threshold: 0.15s / 150ms):
+#    Healthy cache hits resolve in <20ms. Threshold of 150ms catches Redis timeouts
+#    (150ms timeout) and unindexed N+1 database fallbacks.
+# =============================================================================
+
+rules:
+  - rule_id: gateway_error_rate_high
+    service: gateway
+    metric: error_rate
+    comparator: ">"
+    threshold: 0.05
+    for_seconds: 15
+    severity: CRITICAL
+    description: "Gateway 5xx error rate exceeds 5% for sustained 15s"
+
+  - rule_id: gateway_latency_p95_high
+    service: gateway
+    metric: latency_p95
+    comparator: ">"
+    threshold: 0.25
+    for_seconds: 15
+    severity: WARNING
+    description: "Gateway p95 latency exceeds 250ms for sustained 15s"
+
+  - rule_id: orders_db_pool_saturation
+    service: orders
+    metric: db_pool_in_use
+    comparator: ">="
+    threshold: 7.0
+    for_seconds: 15
+    severity: CRITICAL
+    description: "Orders database pool in use reaches or exceeds 7 connections for sustained 15s"
+
+  - rule_id: inventory_latency_p95_high
+    service: inventory
+    metric: latency_p95
+    comparator: ">"
+    threshold: 0.15
+    for_seconds: 15
+    severity: WARNING
+    description: "Inventory p95 latency exceeds 150ms for sustained 15s"

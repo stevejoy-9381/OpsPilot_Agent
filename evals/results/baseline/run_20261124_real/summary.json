@@ -1,0 +1,733 @@
+[
+  {
+    "scenario_id": "S1",
+    "variant": "b0",
+    "trial": 1,
+    "alert": {
+      "alert_id": "alt_932c5e86cb84",
+      "fired_at": "2026-11-24T10:01:00Z",
+      "service": "orders",
+      "rule_id": "orders_db_pool_saturation",
+      "metric": "db_pool_in_use",
+      "threshold": 7.0,
+      "observed_value": 10.0,
+      "window_seconds": 15,
+      "severity": "CRITICAL",
+      "status": "firing",
+      "resolved_at": null
+    },
+    "diagnosis": {
+      "root_cause_service": null,
+      "root_cause_category": "unknown",
+      "mechanism": "unknown",
+      "culprit_deploy_id": null,
+      "evidence_ids": [],
+      "confidence": 0.0
+    },
+    "action": {
+      "action": "escalate",
+      "service": null,
+      "rationale_ids": [],
+      "notes": "B0: Threshold alert fired. Reflexive immediate escalation to human on-call."
+    },
+    "grades": {
+      "diagnosis": {
+        "grade": "abstained",
+        "is_correct": false,
+        "is_partial": false,
+        "is_wrong": false,
+        "is_abstained": true,
+        "reasons": [
+          "Agent explicitly abstained from diagnosis (unknown category or mechanism)"
+        ]
+      },
+      "action": {
+        "correct": false,
+        "unnecessary": false,
+        "wrong_target": false,
+        "missing": true,
+        "reasons": [
+          "Missing action: expected 'rollback_service' on 'orders', but action was escalated to human operator."
+        ]
+      }
+    },
+    "tool_calls": [],
+    "tokens": {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "total": 0
+    },
+    "latency_ms": 0.0,
+    "completion_time_seconds": 0.0,
+    "execution_wall_seconds": 0.0,
+    "cost_estimate": 0.0,
+    "errors": null,
+    "prompt_hash": null,
+    "runbook_hash": null,
+    "model_settings": {},
+    "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+    "harness_version": "1.0.0"
+  },
+  {
+    "scenario_id": "S1",
+    "variant": "b1",
+    "trial": 1,
+    "alert": {
+      "alert_id": "alt_932c5e86cb84",
+      "fired_at": "2026-11-24T10:01:00Z",
+      "service": "orders",
+      "rule_id": "orders_db_pool_saturation",
+      "metric": "db_pool_in_use",
+      "threshold": 7.0,
+      "observed_value": 10.0,
+      "window_seconds": 15,
+      "severity": "CRITICAL",
+      "status": "firing",
+      "resolved_at": null
+    },
+    "diagnosis": {
+      "root_cause_service": "orders",
+      "root_cause_category": "bad_deploy",
+      "mechanism": "connection_pool_exhaustion",
+      "culprit_deploy_id": "deploy_orders_v130",
+      "evidence_ids": [
+        "ev_deploys_cac84ab8"
+      ],
+      "confidence": 0.85
+    },
+    "action": {
+      "action": "rollback_service",
+      "service": "orders",
+      "rationale_ids": [
+        "ev_deploys_cac84ab8"
+      ],
+      "notes": "R3: Rollback orders to resolve saturation from deploy deploy_orders_v130"
+    },
+    "grades": {
+      "diagnosis": {
+        "grade": "correct",
+        "is_correct": true,
+        "is_partial": false,
+        "is_wrong": false,
+        "is_abstained": false,
+        "reasons": [
+          "Diagnosis fully matches ground truth across service, category, mechanism, and culprit"
+        ]
+      },
+      "action": {
+        "correct": true,
+        "unnecessary": false,
+        "wrong_target": false,
+        "missing": false,
+        "reasons": [
+          "Action 'rollback_service' on target 'orders' matches expected."
+        ]
+      }
+    },
+    "tool_calls": [
+      "list_deploys"
+    ],
+    "tokens": {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "total": 0
+    },
+    "latency_ms": 7.0,
+    "completion_time_seconds": 0.0,
+    "execution_wall_seconds": 0.007,
+    "cost_estimate": 0.0,
+    "errors": null,
+    "prompt_hash": null,
+    "runbook_hash": "26d4a36121ab47a27b898b92003863c78a139184c51ec5d93dc04edb123b0e0a",
+    "model_settings": {},
+    "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+    "harness_version": "1.0.0"
+  },
+  {
+    "scenario_id": "S2",
+    "variant": "b0",
+    "trial": 1,
+    "alert": {
+      "alert_id": "alt_2b1f9c567c3a",
+      "fired_at": "2026-11-24T10:00:45Z",
+      "service": "inventory",
+      "rule_id": "inventory_latency_p95_high",
+      "metric": "latency_p95",
+      "threshold": 0.15,
+      "observed_value": 0.35,
+      "window_seconds": 15,
+      "severity": "WARNING",
+      "status": "firing",
+      "resolved_at": null
+    },
+    "diagnosis": {
+      "root_cause_service": null,
+      "root_cause_category": "unknown",
+      "mechanism": "unknown",
+      "culprit_deploy_id": null,
+      "evidence_ids": [],
+      "confidence": 0.0
+    },
+    "action": {
+      "action": "escalate",
+      "service": null,
+      "rationale_ids": [],
+      "notes": "B0: Threshold alert fired. Reflexive immediate escalation to human on-call."
+    },
+    "grades": {
+      "diagnosis": {
+        "grade": "abstained",
+        "is_correct": false,
+        "is_partial": false,
+        "is_wrong": false,
+        "is_abstained": true,
+        "reasons": [
+          "Agent explicitly abstained from diagnosis (unknown category or mechanism)"
+        ]
+      },
+      "action": {
+        "correct": false,
+        "unnecessary": false,
+        "wrong_target": false,
+        "missing": true,
+        "reasons": [
+          "Missing action: expected 'rollback_service' on 'inventory', but action was escalated to human operator."
+        ]
+      }
+    },
+    "tool_calls": [],
+    "tokens": {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "total": 0
+    },
+    "latency_ms": 0.0,
+    "completion_time_seconds": 0.0,
+    "execution_wall_seconds": 0.0,
+    "cost_estimate": 0.0,
+    "errors": null,
+    "prompt_hash": null,
+    "runbook_hash": null,
+    "model_settings": {},
+    "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+    "harness_version": "1.0.0"
+  },
+  {
+    "scenario_id": "S2",
+    "variant": "b1",
+    "trial": 1,
+    "alert": {
+      "alert_id": "alt_2b1f9c567c3a",
+      "fired_at": "2026-11-24T10:00:45Z",
+      "service": "inventory",
+      "rule_id": "inventory_latency_p95_high",
+      "metric": "latency_p95",
+      "threshold": 0.15,
+      "observed_value": 0.35,
+      "window_seconds": 15,
+      "severity": "WARNING",
+      "status": "firing",
+      "resolved_at": null
+    },
+    "diagnosis": {
+      "root_cause_service": "inventory",
+      "root_cause_category": "bad_deploy",
+      "mechanism": "cache_bypass_latency",
+      "culprit_deploy_id": "deploy_inventory_v120",
+      "evidence_ids": [
+        "ev_deploys_3301f3f4"
+      ],
+      "confidence": 0.85
+    },
+    "action": {
+      "action": "rollback_service",
+      "service": "inventory",
+      "rationale_ids": [
+        "ev_deploys_3301f3f4"
+      ],
+      "notes": "R1: Rollback inventory to revert deploy deploy_inventory_v120 deployed within 30m"
+    },
+    "grades": {
+      "diagnosis": {
+        "grade": "correct",
+        "is_correct": true,
+        "is_partial": false,
+        "is_wrong": false,
+        "is_abstained": false,
+        "reasons": [
+          "Diagnosis fully matches ground truth across service, category, mechanism, and culprit"
+        ]
+      },
+      "action": {
+        "correct": true,
+        "unnecessary": false,
+        "wrong_target": false,
+        "missing": false,
+        "reasons": [
+          "Action 'rollback_service' on target 'inventory' matches expected."
+        ]
+      }
+    },
+    "tool_calls": [
+      "list_deploys"
+    ],
+    "tokens": {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "total": 0
+    },
+    "latency_ms": 2.88,
+    "completion_time_seconds": 0.0,
+    "execution_wall_seconds": 0.003,
+    "cost_estimate": 0.0,
+    "errors": null,
+    "prompt_hash": null,
+    "runbook_hash": "26d4a36121ab47a27b898b92003863c78a139184c51ec5d93dc04edb123b0e0a",
+    "model_settings": {},
+    "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+    "harness_version": "1.0.0"
+  },
+  {
+    "scenario_id": "S3",
+    "variant": "b0",
+    "trial": 1,
+    "alert": {
+      "alert_id": "alt_2b1f9c567c3a",
+      "fired_at": "2026-11-24T10:00:45Z",
+      "service": "inventory",
+      "rule_id": "inventory_latency_p95_high",
+      "metric": "latency_p95",
+      "threshold": 0.15,
+      "observed_value": 0.35,
+      "window_seconds": 15,
+      "severity": "WARNING",
+      "status": "firing",
+      "resolved_at": null
+    },
+    "diagnosis": {
+      "root_cause_service": null,
+      "root_cause_category": "unknown",
+      "mechanism": "unknown",
+      "culprit_deploy_id": null,
+      "evidence_ids": [],
+      "confidence": 0.0
+    },
+    "action": {
+      "action": "escalate",
+      "service": null,
+      "rationale_ids": [],
+      "notes": "B0: Threshold alert fired. Reflexive immediate escalation to human on-call."
+    },
+    "grades": {
+      "diagnosis": {
+        "grade": "abstained",
+        "is_correct": false,
+        "is_partial": false,
+        "is_wrong": false,
+        "is_abstained": true,
+        "reasons": [
+          "Agent explicitly abstained from diagnosis (unknown category or mechanism)"
+        ]
+      },
+      "action": {
+        "correct": false,
+        "unnecessary": false,
+        "wrong_target": false,
+        "missing": true,
+        "reasons": [
+          "Missing action: expected 'restart_service' on 'redis', but action was escalated to human operator."
+        ]
+      }
+    },
+    "tool_calls": [],
+    "tokens": {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "total": 0
+    },
+    "latency_ms": 0.0,
+    "completion_time_seconds": 0.0,
+    "execution_wall_seconds": 0.0,
+    "cost_estimate": 0.0,
+    "errors": null,
+    "prompt_hash": null,
+    "runbook_hash": null,
+    "model_settings": {},
+    "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+    "harness_version": "1.0.0"
+  },
+  {
+    "scenario_id": "S3",
+    "variant": "b1",
+    "trial": 1,
+    "alert": {
+      "alert_id": "alt_2b1f9c567c3a",
+      "fired_at": "2026-11-24T10:00:45Z",
+      "service": "inventory",
+      "rule_id": "inventory_latency_p95_high",
+      "metric": "latency_p95",
+      "threshold": 0.15,
+      "observed_value": 0.35,
+      "window_seconds": 15,
+      "severity": "WARNING",
+      "status": "firing",
+      "resolved_at": null
+    },
+    "diagnosis": {
+      "root_cause_service": "redis",
+      "root_cause_category": "dependency_failure",
+      "mechanism": "dependency_timeout",
+      "culprit_deploy_id": null,
+      "evidence_ids": [
+        "ev_deploys_3301f3f4",
+        "ev_metric_fc0b4821",
+        "ev_metric_19c2ff18"
+      ],
+      "confidence": 0.8
+    },
+    "action": {
+      "action": "restart_service",
+      "service": "redis",
+      "rationale_ids": [
+        "ev_deploys_3301f3f4",
+        "ev_metric_fc0b4821",
+        "ev_metric_19c2ff18"
+      ],
+      "notes": "R2: Restart redis due to elevated downstream dependency latency"
+    },
+    "grades": {
+      "diagnosis": {
+        "grade": "partial",
+        "is_correct": false,
+        "is_partial": true,
+        "is_wrong": false,
+        "is_abstained": false,
+        "reasons": [
+          "Diagnosis partially matches: correct category with partial component attribution",
+          "Service mismatch: expected 'inventory', got 'redis'"
+        ]
+      },
+      "action": {
+        "correct": true,
+        "unnecessary": false,
+        "wrong_target": false,
+        "missing": false,
+        "reasons": [
+          "Action 'restart_service' on target 'redis' matches expected."
+        ]
+      }
+    },
+    "tool_calls": [
+      "list_deploys",
+      "get_metrics",
+      "get_metrics"
+    ],
+    "tokens": {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "total": 0
+    },
+    "latency_ms": 8.07,
+    "completion_time_seconds": 0.0,
+    "execution_wall_seconds": 0.008,
+    "cost_estimate": 0.0,
+    "errors": null,
+    "prompt_hash": null,
+    "runbook_hash": "26d4a36121ab47a27b898b92003863c78a139184c51ec5d93dc04edb123b0e0a",
+    "model_settings": {},
+    "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+    "harness_version": "1.0.0"
+  },
+  {
+    "scenario_id": "S4",
+    "variant": "b0",
+    "trial": 1,
+    "alert": {
+      "alert_id": "alt_cc2ce95b2423",
+      "fired_at": "2026-11-24T10:01:00Z",
+      "service": "inventory",
+      "rule_id": "inventory_latency_p95_high",
+      "metric": "latency_p95",
+      "threshold": 0.15,
+      "observed_value": 0.35,
+      "window_seconds": 15,
+      "severity": "WARNING",
+      "status": "firing",
+      "resolved_at": null
+    },
+    "diagnosis": {
+      "root_cause_service": null,
+      "root_cause_category": "unknown",
+      "mechanism": "unknown",
+      "culprit_deploy_id": null,
+      "evidence_ids": [],
+      "confidence": 0.0
+    },
+    "action": {
+      "action": "escalate",
+      "service": null,
+      "rationale_ids": [],
+      "notes": "B0: Threshold alert fired. Reflexive immediate escalation to human on-call."
+    },
+    "grades": {
+      "diagnosis": {
+        "grade": "abstained",
+        "is_correct": false,
+        "is_partial": false,
+        "is_wrong": false,
+        "is_abstained": true,
+        "reasons": [
+          "Agent explicitly abstained from diagnosis (unknown category or mechanism)"
+        ]
+      },
+      "action": {
+        "correct": false,
+        "unnecessary": false,
+        "wrong_target": false,
+        "missing": true,
+        "reasons": [
+          "Missing action: expected 'restart_service' on 'redis', but action was escalated to human operator."
+        ]
+      }
+    },
+    "tool_calls": [],
+    "tokens": {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "total": 0
+    },
+    "latency_ms": 0.0,
+    "completion_time_seconds": 0.0,
+    "execution_wall_seconds": 0.0,
+    "cost_estimate": 0.0,
+    "errors": null,
+    "prompt_hash": null,
+    "runbook_hash": null,
+    "model_settings": {},
+    "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+    "harness_version": "1.0.0"
+  },
+  {
+    "scenario_id": "S4",
+    "variant": "b1",
+    "trial": 1,
+    "alert": {
+      "alert_id": "alt_cc2ce95b2423",
+      "fired_at": "2026-11-24T10:01:00Z",
+      "service": "inventory",
+      "rule_id": "inventory_latency_p95_high",
+      "metric": "latency_p95",
+      "threshold": 0.15,
+      "observed_value": 0.35,
+      "window_seconds": 15,
+      "severity": "WARNING",
+      "status": "firing",
+      "resolved_at": null
+    },
+    "diagnosis": {
+      "root_cause_service": "redis",
+      "root_cause_category": "dependency_failure",
+      "mechanism": "dependency_timeout",
+      "culprit_deploy_id": null,
+      "evidence_ids": [
+        "ev_deploys_b9d0881e",
+        "ev_metric_99031649",
+        "ev_metric_e73b27e0"
+      ],
+      "confidence": 0.8
+    },
+    "action": {
+      "action": "restart_service",
+      "service": "redis",
+      "rationale_ids": [
+        "ev_deploys_b9d0881e",
+        "ev_metric_99031649",
+        "ev_metric_e73b27e0"
+      ],
+      "notes": "R2: Restart redis due to elevated downstream dependency latency"
+    },
+    "grades": {
+      "diagnosis": {
+        "grade": "partial",
+        "is_correct": false,
+        "is_partial": true,
+        "is_wrong": false,
+        "is_abstained": false,
+        "reasons": [
+          "Diagnosis partially matches: correct category with partial component attribution",
+          "Service mismatch: expected 'inventory', got 'redis'"
+        ]
+      },
+      "action": {
+        "correct": true,
+        "unnecessary": false,
+        "wrong_target": false,
+        "missing": false,
+        "reasons": [
+          "Action 'restart_service' on target 'redis' matches expected."
+        ]
+      }
+    },
+    "tool_calls": [
+      "list_deploys",
+      "get_metrics",
+      "get_metrics"
+    ],
+    "tokens": {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "total": 0
+    },
+    "latency_ms": 8.63,
+    "completion_time_seconds": 0.0,
+    "execution_wall_seconds": 0.009,
+    "cost_estimate": 0.0,
+    "errors": null,
+    "prompt_hash": null,
+    "runbook_hash": "26d4a36121ab47a27b898b92003863c78a139184c51ec5d93dc04edb123b0e0a",
+    "model_settings": {},
+    "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+    "harness_version": "1.0.0"
+  },
+  {
+    "scenario_id": "S5",
+    "variant": "b0",
+    "trial": 1,
+    "alert": {
+      "alert_id": "alt_0b8ab37aacc4",
+      "fired_at": "2026-11-24T10:00:45Z",
+      "service": "orders",
+      "rule_id": "orders_db_pool_saturation",
+      "metric": "db_pool_in_use",
+      "threshold": 7.0,
+      "observed_value": 8.5,
+      "window_seconds": 15,
+      "severity": "CRITICAL",
+      "status": "resolved",
+      "resolved_at": "2026-11-24T10:01:00Z"
+    },
+    "diagnosis": {
+      "root_cause_service": null,
+      "root_cause_category": "unknown",
+      "mechanism": "unknown",
+      "culprit_deploy_id": null,
+      "evidence_ids": [],
+      "confidence": 0.0
+    },
+    "action": {
+      "action": "escalate",
+      "service": null,
+      "rationale_ids": [],
+      "notes": "B0: Threshold alert fired. Reflexive immediate escalation to human on-call."
+    },
+    "grades": {
+      "diagnosis": {
+        "grade": "abstained",
+        "is_correct": false,
+        "is_partial": false,
+        "is_wrong": false,
+        "is_abstained": true,
+        "reasons": [
+          "Agent explicitly abstained from diagnosis (unknown category or mechanism)"
+        ]
+      },
+      "action": {
+        "correct": false,
+        "unnecessary": false,
+        "wrong_target": false,
+        "missing": false,
+        "reasons": [
+          "Action escalated to human operator on false alarm; no action was required."
+        ]
+      }
+    },
+    "tool_calls": [],
+    "tokens": {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "total": 0
+    },
+    "latency_ms": 0.0,
+    "completion_time_seconds": 0.0,
+    "execution_wall_seconds": 0.0,
+    "cost_estimate": 0.0,
+    "errors": null,
+    "prompt_hash": null,
+    "runbook_hash": null,
+    "model_settings": {},
+    "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+    "harness_version": "1.0.0"
+  },
+  {
+    "scenario_id": "S5",
+    "variant": "b1",
+    "trial": 1,
+    "alert": {
+      "alert_id": "alt_0b8ab37aacc4",
+      "fired_at": "2026-11-24T10:00:45Z",
+      "service": "orders",
+      "rule_id": "orders_db_pool_saturation",
+      "metric": "db_pool_in_use",
+      "threshold": 7.0,
+      "observed_value": 8.5,
+      "window_seconds": 15,
+      "severity": "CRITICAL",
+      "status": "resolved",
+      "resolved_at": "2026-11-24T10:01:00Z"
+    },
+    "diagnosis": {
+      "root_cause_service": null,
+      "root_cause_category": "false_alarm",
+      "mechanism": "none",
+      "culprit_deploy_id": null,
+      "evidence_ids": [],
+      "confidence": 0.9
+    },
+    "action": {
+      "action": "no_action",
+      "service": null,
+      "rationale_ids": [],
+      "notes": "R4: Alert resolved before evaluation completed; no action needed"
+    },
+    "grades": {
+      "diagnosis": {
+        "grade": "correct",
+        "is_correct": true,
+        "is_partial": false,
+        "is_wrong": false,
+        "is_abstained": false,
+        "reasons": [
+          "Diagnosis fully matches ground truth across service, category, mechanism, and culprit"
+        ]
+      },
+      "action": {
+        "correct": true,
+        "unnecessary": false,
+        "wrong_target": false,
+        "missing": false,
+        "reasons": [
+          "Action 'no_action' on target 'None' matches expected."
+        ]
+      }
+    },
+    "tool_calls": [
+      "list_deploys",
+      "get_metrics"
+    ],
+    "tokens": {
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "total": 0
+    },
+    "latency_ms": 1.0,
+    "completion_time_seconds": 0.0,
+    "execution_wall_seconds": 0.001,
+    "cost_estimate": 0.0,
+    "errors": null,
+    "prompt_hash": null,
+    "runbook_hash": "26d4a36121ab47a27b898b92003863c78a139184c51ec5d93dc04edb123b0e0a",
+    "model_settings": {},
+    "git_sha": "b325d9fe23199a79641c68ae411f9db309c56729",
+    "harness_version": "1.0.0"
+  }
+]
