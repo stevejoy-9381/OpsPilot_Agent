@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import pytest
 
 from tools.common.sanitize import detect_instruction_like_text, quarantine, redact

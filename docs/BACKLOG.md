@@ -38,12 +38,31 @@ Deferred ideas, future enhancements, and follow-ups identified during architectu
 1. **Persistent PostgreSQL `observations` Storage**:
    - *Context*: Feature 2 implements `InMemoryEvidenceStore` and `JsonlEvidenceStore`.
    - *Idea*: Migrate evidence audit records into permanent PostgreSQL `observations` table during Feature 4 persistence milestone.
-   - *Status*: Slated for Feature 4.
+   - *Status*: Completed in Feature 4 (`PostgresEvidenceStore` with 64 KB inline cap, `payload_ref`, content hash verification, and RLS).
 
 2. **Distributed Trace Visualizer in Review UI**:
    - *Context*: `get_trace` provides precomputed critical paths and collapsed span trees via CLI/API.
    - *Idea*: Add a visual waterfall chart component in React UI using the `SpanNode` schema.
-   - *Status*: Slated for Feature 3 UI enhancements.
+   - *Status*: Slated for Feature 8 UI enhancements.
+
+---
+
+## PostgreSQL Data Model & Invariants (Feature 4 Follow-ups)
+
+1. **Physical Broker Role Grant Finalization**:
+   - *Context*: Role `broker` is provisioned with read grants on `app.action_plans` and write grants on `app.action_executions`.
+   - *Idea*: Finalize broker daemon credentials, mutual TLS / service token exchange, and execution feedback loop during Feature 9 (Execution Broker).
+   - *Status*: Slated for Feature 9.
+
+2. **PostgreSQL Checkpointer Integration with Agent Graph**:
+   - *Context*: Schema `checkpoints` and role `opspilot_checkpointer` are fully provisioned and verified with LangGraph `setup()`.
+   - *Idea*: Wire LangGraph `PostgresSaver` directly into `agent/graph/` during Feature 6 agent construction.
+   - *Status*: Slated for Feature 6.
+
+3. **Partitioning on `app.run_events` and `app.observations`**:
+   - *Context*: Large-scale deployments will generate millions of telemetry events and observation records.
+   - *Idea*: Introduce declarative range partitioning on `created_at` or list partitioning on `tenant_id` for automated retention management and cold-storage tiering.
+   - *Status*: Deferred to post-MVP scale hardening.
 
 ---
 

@@ -6,10 +6,11 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
 import pytest
 
 from tools.common.evidence_store import InMemoryEvidenceStore
-from tools.common.models import ErrorCode, ToolContext, ToolError, ToolSuccess
+from tools.common.models import ToolContext, ToolSuccess
 from tools.read.backends.snapshot import SnapshotBackend
 from tools.read.logs import LogsPayload, search_logs
 
@@ -56,7 +57,7 @@ def _build_log_snapshot(base_dir: Path) -> Path:
         {
             "timestamp": (base_time + timedelta(minutes=m)).isoformat(),
             "level": "ERROR",
-            "message": f"HTTP 504 Gateway Timeout calling warehouse supplier service at timeout_ms=5000",
+            "message": "HTTP 504 Gateway Timeout calling warehouse supplier service at timeout_ms=5000",
             "attributes": {"event": "upstream_timeout", "trace_id": f"tr_inv_{m}"},
         }
         for m in range(10)
@@ -196,7 +197,7 @@ async def test_search_logs_not_found_and_degradation(logs_env: Any, monkeypatch:
     backend, ctx, store = logs_env
 
     # 1. Missing service log file returns not_found
-    res = await search_logs(
+    await search_logs(
         ctx=ctx,
         service="inventory",  # Let's test with a service that has no log
         backend=backend,

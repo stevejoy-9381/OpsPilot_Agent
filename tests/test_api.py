@@ -18,19 +18,20 @@ async def test_healthz() -> None:
 @pytest.mark.asyncio
 async def test_readyz_healthy() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.get("/readyz")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "ok"
-        assert data["components"]["postgres"] == "ok"
-        assert data["components"]["redis"] == "ok"
+    with patch("apps.api.main.check_postgres", return_value=True), patch("apps.api.main.check_redis", return_value=True):
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/readyz")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "ok"
+            assert data["components"]["postgres"] == "ok"
+            assert data["components"]["redis"] == "ok"
 
 
 @pytest.mark.asyncio
 async def test_readyz_degraded_when_postgres_fails() -> None:
     transport = ASGITransport(app=app)
-    with patch("apps.api.main.check_postgres", return_value=False):
+    with patch("apps.api.main.check_postgres", return_value=False), patch("apps.api.main.check_redis", return_value=True):
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/readyz")
             assert response.status_code == 503

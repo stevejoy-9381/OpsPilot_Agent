@@ -10,8 +10,8 @@ from __future__ import annotations
 import re
 from collections import Counter
 from datetime import datetime, timezone
-from typing import Any, Literal
-from pydantic import BaseModel, ConfigDict, Field
+
+from pydantic import BaseModel, ConfigDict
 
 from tools.common.errors import (
     access_denied,
@@ -23,7 +23,7 @@ from tools.common.errors import (
 from tools.common.evidence import make_evidence_id
 from tools.common.evidence_store import EvidenceRecord, EvidenceStore
 from tools.common.limits import tool_limits
-from tools.common.models import ErrorCode, ToolContext, ToolError, ToolResult, ToolSuccess
+from tools.common.models import ToolContext, ToolError, ToolResult, ToolSuccess
 from tools.common.sanitize import quarantine, redact
 from tools.common.window import validate_and_clamp_window
 from tools.read.backends.base import LogsBackend, RawLogLine

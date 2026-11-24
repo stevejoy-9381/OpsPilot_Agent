@@ -8,15 +8,15 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
-import pytest
+from typing import Any
+
 import httpx
+import pytest
 
 from tools.common.models import ToolContext, ToolSuccess
 from tools.read.backends.live import LiveBackend
-from tools.read.deploys import get_deploy_diff, list_deploys
 from tools.read.logs import search_logs
 from tools.read.metrics import get_metrics
-from tools.read.traces import get_trace
 
 
 def _is_lab_reachable() -> bool:

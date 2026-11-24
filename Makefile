@@ -1,4 +1,4 @@
-.PHONY: install lint typecheck test migrate run-api up down reset web-install web-dev web-test web-lint lab-up lab-down lab-smoke lab-lean codespace-setup
+.PHONY: install lint typecheck test migrate run-api up down reset db-up db-migrate db-reset db-seed test-backbone web-install web-dev web-test web-lint lab-up lab-down lab-smoke lab-lean codespace-setup
 
 install:
 	uv sync --extra dev
@@ -14,6 +14,26 @@ test:
 
 migrate:
 	uv run alembic upgrade head
+
+db-up:
+	docker compose --env-file .env -f infra/docker-compose.yml --profile core up -d postgres
+	@echo "Waiting for postgres to become healthy..."
+	@until docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres pg_isready -U opspilot -d opspilot > /dev/null 2>&1; do sleep 1; done
+	@echo "Postgres is ready."
+
+db-migrate:
+	uv run alembic upgrade head
+
+db-reset:
+	uv run python -c "import os, psycopg; url = os.environ.get('DATABASE_URL', 'postgresql://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot').replace('+psycopg', ''); conn = psycopg.connect(url, autocommit=True); conn.execute('DROP SCHEMA IF EXISTS app CASCADE; DROP SCHEMA IF EXISTS checkpoints CASCADE; DROP TABLE IF EXISTS alembic_version;'); conn.close(); print('Database schema dropped.')"
+	uv run alembic upgrade head
+	@echo "Database reset and migrated to head."
+
+db-seed:
+	uv run python scripts/seed_dev.py
+
+test-backbone:
+	uv run pytest tests/backbone/test_lifecycle.py -v
 
 run-api:
 	uv run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000

@@ -25,7 +25,7 @@ def get_url() -> str:
             settings = get_settings()
             url = settings.database_url.get_secret_value()
     if url.startswith("postgresql://"):
-        url = "postgresql+psycopg://" + url[len("postgresql://"):]
+        url = "postgresql+psycopg://" + url[len("postgresql://") :]
     return url
 
 

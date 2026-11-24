@@ -11,11 +11,10 @@ Implements:
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
-from pydantic import BaseModel, ConfigDict, Field
+
+from pydantic import BaseModel, ConfigDict
 
 from tools.common.errors import (
     access_denied,
@@ -27,7 +26,7 @@ from tools.common.errors import (
 from tools.common.evidence import make_evidence_id
 from tools.common.evidence_store import EvidenceRecord, EvidenceStore
 from tools.common.limits import tool_limits
-from tools.common.models import ErrorCode, ToolContext, ToolError, ToolResult, ToolSuccess
+from tools.common.models import ToolContext, ToolError, ToolResult, ToolSuccess
 from tools.common.sanitize import quarantine, redact
 from tools.common.window import validate_and_clamp_window
 from tools.read.backends.base import DeployBackend, RawDeployRecord
@@ -303,15 +302,6 @@ async def get_deploy_diff(
     for line in raw_diff.diff_text.splitlines():
         if ("=" in line or ":" in line) and any(kw in line.lower() for kw in ("pool", "timeout", "limit", "url")):
             config_changes["detected_config_change"] = line.strip().lstrip("+- ")
-
-    payload = DeployDiffPayload(
-        service=service,
-        old_version=old_version,
-        new_version=new_version,
-        changed_files=changed_files,
-        config_changes=config_changes,
-        diff_text=q_res.text,
-    )
 
     normalized_args = {
         "new_version": new_version,

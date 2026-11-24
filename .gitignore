@@ -31,6 +31,8 @@ pnpm-debug.log*
 # Local data volumes and runtime state
 data/
 volumes/
+.pg_test_cluster/
+.pg_clean_test/
 *.sqlite
 *.sqlite3
 *.db

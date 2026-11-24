@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
@@ -179,3 +180,21 @@ class JsonlEvidenceStore:
 
     def exists(self, evidence_id: str, run_id: str, tenant_id: str | None = None) -> bool:
         return self.get(evidence_id, run_id, tenant_id) is not None
+
+
+def get_default_evidence_store() -> EvidenceStore:
+    """Factory creating an EvidenceStore based on EVIDENCE_STORE environment variable.
+
+    Supported values:
+    - 'postgres': PostgresEvidenceStore (default in production/evals when configured)
+    - 'memory': InMemoryEvidenceStore
+    - 'jsonl': JsonlEvidenceStore (uses base_dir: evals/artifacts/evidence_jsonl)
+    """
+    store_type = os.getenv("EVIDENCE_STORE", "memory").lower().strip()
+    if store_type == "postgres":
+        from tools.common.postgres_evidence_store import PostgresEvidenceStore
+
+        return PostgresEvidenceStore()
+    elif store_type == "jsonl":
+        return JsonlEvidenceStore(base_dir=Path("evals/artifacts/evidence_jsonl"))
+    return InMemoryEvidenceStore()

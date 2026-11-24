@@ -59,10 +59,36 @@ jobs:
       - name: Typecheck with Mypy
         run: uv run mypy apps agent lab tools baseline shared evals tests
 
-      - name: Run Alembic baseline migration
+      - name: Run Alembic migration reversibility check (up -> down -> up)
         env:
           DATABASE_URL: postgresql+psycopg://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
-        run: uv run alembic upgrade head
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade 0001_baseline
+          uv run alembic upgrade head
+
+      - name: Run backbone lifecycle driver tests
+        env:
+          DATABASE_URL: postgresql+psycopg://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: uv run pytest tests/backbone/test_lifecycle.py -v
+
+      - name: Run tenant isolation and RLS tests
+        env:
+          DATABASE_URL: postgresql+psycopg://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: uv run pytest tests/test_db_invariants.py tests/test_run_events.py -v
+
+      - name: Run evidence-store parity and adversarial tests
+        env:
+          DATABASE_URL: postgresql+psycopg://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: uv run pytest tests/test_postgres_evidence_store.py tests/test_tools_adversarial.py -v
+
+      - name: Verify database invariants (zero violations)
+        env:
+          DATABASE_URL: postgresql+psycopg://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+        run: uv run python scripts/db_invariants.py
 
       - name: Run backend tests
         env:

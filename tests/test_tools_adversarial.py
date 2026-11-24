@@ -17,16 +17,17 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
 import pytest
 
 from tools.common.evidence_store import InMemoryEvidenceStore, JsonlEvidenceStore
 from tools.common.models import ErrorCode, ToolContext, ToolError, ToolSuccess
 from tools.read.backends.snapshot import SnapshotBackend
-from tools.read.deploys import get_deploy_diff, list_deploys
+from tools.read.deploys import get_deploy_diff
 from tools.read.logs import search_logs
 from tools.read.metrics import get_metrics
 from tools.read.traces import get_trace
-from tools.registry import ToolRegistry, registry
+from tools.registry import ToolRegistry
 
 
 @pytest.fixture
@@ -304,7 +305,6 @@ def test_case5_cross_tenant_and_cross_run_isolation(tmp_path: Path) -> None:
     record_a = jsonl_store.base_dir / "tenant_A" / "run_001.jsonl"
     record_a.parent.mkdir(parents=True, exist_ok=True)
 
-    from tools.read.backends.snapshot import SnapshotBackend
     from tools.common.evidence_store import EvidenceRecord
     rec = EvidenceRecord(
         evidence_id="ev_secret_123",

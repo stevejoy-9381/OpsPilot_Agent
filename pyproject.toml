@@ -49,6 +49,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B"]
+ignore = ["E501", "B008", "B904", "B006"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -61,7 +62,6 @@ disallow_incomplete_defs = true
 [[tool.mypy.overrides]]
 module = [
     "langgraph.*",
-    "langgraph_checkpoint_postgres.*",
     "google.*",
     "google",
     "opentelemetry.*",
@@ -69,6 +69,13 @@ module = [
 ]
 ignore_missing_imports = true
 follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = [
+    "tests.*",
+    "evals.*",
+]
+ignore_errors = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

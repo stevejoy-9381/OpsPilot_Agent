@@ -6,13 +6,14 @@ import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
 import pytest
 
-from tools.common.evidence_store import InMemoryEvidenceStore
-from tools.common.models import ErrorCode, ToolContext, ToolError, ToolSuccess
-from tools.read.backends.snapshot import SnapshotBackend
-from tools.registry import ToolRegistry, registry
 from tests.test_metrics_tool import _build_scenario_snapshot
+from tools.common.evidence_store import InMemoryEvidenceStore
+from tools.common.models import ErrorCode, ToolContext, ToolError, ToolResult, ToolSuccess
+from tools.read.backends.snapshot import SnapshotBackend
+from tools.registry import ToolRegistry
 
 
 @pytest.fixture
@@ -116,11 +117,10 @@ async def test_timeout_maps_to_source_unavailable(registry_env: Any, monkeypatch
             data={},
         )
 
-    from tools.registry import TOOL_TIMEOUT_SECONDS
     import tools.registry as reg_module
     monkeypatch.setattr(reg_module, "TOOL_TIMEOUT_SECONDS", 0.05)
 
-    res = await reg.dispatch(
+    await reg.dispatch(
         name="get_metrics",
         raw_args={"service": "orders", "metric": "db_pool_in_use"},
         ctx=ctx,

@@ -66,7 +66,7 @@ class InventoryStore:
         metrics: LabMetrics,
         version_registry: VersionProfileRegistry,
         pool: AsyncConnectionPool | None = None,
-        redis_client: aioredis.Redis[str] | None = None,
+        redis_client: Any | None = None,
     ) -> None:
         self.settings = settings
         self.fault_state = fault_state

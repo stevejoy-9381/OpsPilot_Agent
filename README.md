@@ -56,6 +56,40 @@ Modern cloud-native systems face complex production incidents where critical dia
 +-------------------------------------------------------------------------------+
 ```
 
+#### Relational Data Model & Security Schema
+
+The database partitions business domain records and LangGraph state into distinct schemas (`app` and `checkpoints`) with row-level security (`FORCE ROW LEVEL SECURITY`) and database trigger-enforced invariants:
+
+```mermaid
+erDiagram
+    tenants ||--o{ users : "has"
+    tenants ||--o{ sessions : "scopes"
+    tenants ||--o{ incidents : "owns"
+    tenants ||--o{ runs : "scopes"
+    tenants ||--o{ run_events : "scopes"
+    tenants ||--o{ hypotheses : "scopes"
+    tenants ||--o{ observations : "scopes"
+    tenants ||--o{ action_plans : "scopes"
+    tenants ||--o{ approvals : "scopes"
+    tenants ||--o{ action_executions : "scopes"
+
+    users ||--o{ sessions : "authenticates"
+    users ||--o{ approvals : "decides"
+
+    incidents ||--o{ runs : "investigated_by"
+
+    runs ||--o{ run_events : "emits"
+    runs ||--o{ hypotheses : "formulates"
+    runs ||--o{ observations : "records"
+    runs ||--o| diagnoses : "concludes_with"
+    runs ||--o{ action_plans : "proposes"
+
+    action_plans ||--o{ approvals : "reviewed_by"
+    action_plans ||--o| action_executions : "executed_via"
+
+    runs }|--|| allowed_transitions : "enforced_by_trigger"
+```
+
 ---
 
 ### Quickstart
@@ -142,6 +176,11 @@ The baseline ladder measures non-agent performance across three benchmark rungs 
 | `make typecheck` | `uv run mypy apps agent tests` | Run Mypy strict typechecking |
 | `make test` | `uv run pytest -v` | Run full backend test suite offline |
 | `make migrate` | `uv run alembic upgrade head` | Run Alembic database migrations |
+| `make db-up` | Docker up postgres | Spin up core PostgreSQL container and await healthcheck |
+| `make db-migrate` | `uv run alembic upgrade head` | Apply pending Alembic migrations |
+| `make db-reset` | Drop schema + Alembic head | Cleanly reset schema and apply all migrations to head |
+| `make db-seed` | `uv run python scripts/seed_dev.py` | Seed deterministic tenants, users, and credentials |
+| `make test-backbone` | `uv run pytest tests/backbone/test_lifecycle.py -v` | Run scripted lifecycle driver, negative paths, and 200-run load check |
 | `make web-install`| `cd apps/web && npm install` | Install React frontend packages |
 | `make web-lint` | `cd apps/web && npm run lint` | Run ESLint on frontend code |
 | `make web-test` | `cd apps/web && npm test` | Run Vitest unit tests |
@@ -194,5 +233,14 @@ The baseline ladder measures non-agent performance across three benchmark rungs 
   - Automated evaluation runner ([evals/baseline_runner.py](evals/baseline_runner.py)) with strict isolation, dry-run safety, and fraction reporting
   - Committed Agent Value Gate targets ([docs/agent_value_gate.md](docs/agent_value_gate.md)) frozen before the agent exists
   - Full baseline evaluation report ([docs/baseline_report.md](docs/baseline_report.md))
-- [ ] **Feature 4: Exact-Plan Review UI & Execution Broker** (Cryptographic plan hashing, human approval gate)
-- [ ] **Feature 5: Independent Verification & Escalation Engine** (Outcome proof, rollback on degradation)
+- [x] **Feature 4: PostgreSQL Data Model, Invariants, REST API & Backbone Complete**
+  - Dual-schema PostgreSQL model (`app` and `checkpoints`) with UUID primary keys and timestamped entities
+  - Strict Row-Level Security (`FORCE ROW LEVEL SECURITY`) across all tenant-scoped tables with session context injection
+  - Database invariant triggers: plan immutability, canonical SHA-256 plan hash cross-verification, transition enforcement against `app.allowed_transitions`, append-only run events and observations, and delete-rejection on approvals and executions
+  - Pinned Argon2id password hashing, opaque session cookies, CSRF protection, and role-based access control (`viewer`, `reviewer`, `admin`)
+  - REST API router layer with consistent error envelopes, cursor pagination, and SSE streaming with 15s heartbeats
+  - Production-grade `PostgresEvidenceStore` with 64 KB inline caps and artifact file references
+  - Scripted lifecycle backbone driver (`tests/backbone/test_lifecycle.py`), 200 concurrent runs load test, and database integrity script (`scripts/db_invariants.py`)
+  - Full data model, security, and invariant report ([docs/DATA_MODEL_REPORT.md](docs/DATA_MODEL_REPORT.md))
+- [ ] **Feature 5: Review UI & Interactive Investigation Dashboard** (Review screen, live SSE timelines, human approval gate)
+- [ ] **Feature 6: Agent Graph & Diagnostic Core** (LangGraph state engine, hypothesis formulation, tool dispatch)

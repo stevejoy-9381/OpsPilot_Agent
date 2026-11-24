@@ -12,13 +12,13 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Coroutine, Dict, Type
+from typing import Any, Callable, Coroutine, Type
+
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from tools.common.errors import budget_exhausted, invalid_argument, source_unavailable
-from tools.common.evidence import make_evidence_id
-from tools.common.evidence_store import EvidenceRecord, EvidenceStore
-from tools.common.models import ErrorCode, ToolContext, ToolError, ToolResult, ToolSuccess
+from tools.common.evidence_store import EvidenceStore, get_default_evidence_store
+from tools.common.models import ToolContext, ToolResult, ToolSuccess
 from tools.read.deploys import get_deploy_diff, list_deploys
 from tools.read.logs import search_logs
 from tools.read.metrics import get_metrics
@@ -146,6 +146,7 @@ class ToolRegistry:
         backend: Any = None,
     ) -> ToolResult:
         start_time = time.monotonic()
+        actual_store = store if store is not None else get_default_evidence_store()
         tool_entry = self._tools.get(name)
 
         # 1. Unknown tool check
@@ -217,7 +218,7 @@ class ToolRegistry:
         # 5. Dispatch with timeout enforcement
         try:
             result = await asyncio.wait_for(
-                handler(ctx=ctx, **call_kwargs, backend=backend, store=store),
+                handler(ctx=ctx, **call_kwargs, backend=backend, store=actual_store),
                 timeout=TOOL_TIMEOUT_SECONDS,
             )
         except asyncio.TimeoutError:

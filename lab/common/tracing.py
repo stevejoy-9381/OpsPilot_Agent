@@ -1,8 +1,12 @@
 
 from fastapi import FastAPI
 from opentelemetry import trace
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+except ImportError:
+    FastAPIInstrumentor = None  # type: ignore[assignment, misc]
+    HTTPXClientInstrumentor = None  # type: ignore[assignment, misc]
 from opentelemetry.propagate import set_global_textmap
 from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -41,16 +45,17 @@ def setup_tracing(
 
 def instrument_app(app: FastAPI) -> None:
     """Instruments a FastAPI application with OpenTelemetry, excluding admin & metrics routes."""
-    FastAPIInstrumentor.instrument_app(
-        app,
-        excluded_urls=r".*admin.*,.*metrics.*",
-        tracer_provider=trace.get_tracer_provider(),
-    )
+    if FastAPIInstrumentor is not None:
+        FastAPIInstrumentor.instrument_app(
+            app,
+            excluded_urls=r".*admin.*,.*metrics.*",
+            tracer_provider=trace.get_tracer_provider(),
+        )
 
 
 def instrument_httpx() -> None:
     """Instruments httpx client globally to propagate W3C trace context."""
     global _httpx_instrumented
-    if not _httpx_instrumented:
+    if not _httpx_instrumented and HTTPXClientInstrumentor is not None:
         HTTPXClientInstrumentor().instrument()
         _httpx_instrumented = True

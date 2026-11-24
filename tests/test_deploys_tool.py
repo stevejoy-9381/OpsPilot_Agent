@@ -6,12 +6,13 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
 import pytest
 
 from tools.common.evidence_store import InMemoryEvidenceStore
 from tools.common.models import ErrorCode, ToolContext, ToolError, ToolSuccess
 from tools.read.backends.snapshot import SnapshotBackend
-from tools.read.deploys import DeployDiffPayload, ListDeploysPayload, get_deploy_diff, list_deploys
+from tools.read.deploys import DeployDiffPayload, get_deploy_diff, list_deploys
 
 
 def _build_deploys_snapshot(base_dir: Path) -> Path:

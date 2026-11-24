@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from tools.common.errors import (
@@ -25,10 +26,10 @@ from tools.common.errors import (
 from tools.common.evidence import make_evidence_id
 from tools.common.evidence_store import EvidenceRecord, EvidenceStore
 from tools.common.limits import tool_limits
-from tools.common.models import ErrorCode, ToolContext, ToolError, ToolResult, ToolSuccess
+from tools.common.models import ToolContext, ToolError, ToolResult, ToolSuccess
 from tools.common.sanitize import quarantine, redact
 from tools.common.window import validate_and_clamp_window
-from tools.read.backends.base import RawSpan, RawTrace, TraceBackend
+from tools.read.backends.base import RawSpan, TraceBackend
 from tools.read.backends.factory import get_backend
 
 # ---------------------------------------------------------------------------
@@ -306,8 +307,8 @@ async def get_trace(
 
         # Check service authorization
         trace_services = {s.service_name for s in raw_trace.spans}
-        if not trace_services.issubset(ctx.allowed_services):
-            unauthorized = trace_services - ctx.allowed_services
+        if not trace_services.issubset(set(ctx.allowed_services)):
+            unauthorized = trace_services - set(ctx.allowed_services)
             return access_denied(
                 f"Trace spans across unauthorized services: {unauthorized}",
                 remedy=f"Scope query to authorized services: {ctx.allowed_services}",
@@ -468,9 +469,9 @@ async def get_trace(
 
     normalized_args = {
         "end": w_end.isoformat(),
-        "errors_only": errors_only,
-        "limit": clamped_limit,
-        "min_duration_ms": min_duration_ms or 0.0,
+        "errors_only": str(errors_only),
+        "limit": str(clamped_limit),
+        "min_duration_ms": str(min_duration_ms or 0.0),
         "service": service,
         "start": w_start.isoformat(),
     }

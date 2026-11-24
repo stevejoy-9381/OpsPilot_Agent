@@ -117,8 +117,7 @@ def redact(text: str) -> str:
     text = _EMAIL_PATTERN.sub("[REDACTED:EMAIL]", text)
 
     # Redact long hex secrets (skip if already marked [REDACTED:...)
-    def _replace_hex(m: re.Match[str]) -> str:
-        matched = m.group(0)
+    def _replace_hex(_m: re.Match[str]) -> str:
         # Avoid replacing inside existing replacement tags
         return "[REDACTED:HEX_SECRET]"
 

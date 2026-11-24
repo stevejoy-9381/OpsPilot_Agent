@@ -7,18 +7,13 @@ diagnoses with the ground truth oracle.
 
 from __future__ import annotations
 
-import asyncio
-import json
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Callable
 
 from tools.common.evidence_store import InMemoryEvidenceStore
 from tools.common.models import ToolContext, ToolSuccess
 from tools.read.backends.snapshot import SnapshotBackend
-from tools.registry import ToolRegistry, registry
+from tools.registry import ToolRegistry
 
 
 @dataclass
