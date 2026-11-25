@@ -355,6 +355,11 @@ class RunRepository(BaseRepository):
         self.get_by_id(ctx, run_id)  # Validate run exists for tenant
 
         existing = self.get_run_diagnosis(ctx, run_id)
+        model_conf_val = diagnosis_data.get("model_confidence")
+        model_conf_str = str(model_conf_val)[:32] if model_conf_val is not None else None
+        capped_conf_val = diagnosis_data.get("capped_confidence")
+        capped_conf_float = float(capped_conf_val) if capped_conf_val is not None else None
+
         if existing:
             existing.root_cause_service = diagnosis_data.get("root_cause_service")
             existing.root_cause_category = diagnosis_data.get("root_cause_category", "unknown")
@@ -362,6 +367,13 @@ class RunRepository(BaseRepository):
             existing.culprit_deploy_id = diagnosis_data.get("culprit_deploy_id")
             existing.evidence_ids = list(diagnosis_data.get("evidence_ids", []))
             existing.confidence = float(diagnosis_data.get("confidence", 0.0))
+            existing.outcome_kind = str(diagnosis_data.get("outcome_kind", "unknown"))[:32]
+            existing.outcome_reason = str(diagnosis_data.get("outcome_reason", "concluded_by_model"))[:64]
+            existing.model_confidence = model_conf_str
+            existing.capped_confidence = capped_conf_float
+            existing.ledger_summary = diagnosis_data.get("ledger_summary")
+            existing.what_would_change = diagnosis_data.get("what_would_change")
+            existing.gate_rejection_count = int(diagnosis_data.get("gate_rejection_count", 0))
             existing.status = status
             self.session.flush()
             self.session.refresh(existing)
@@ -376,6 +388,13 @@ class RunRepository(BaseRepository):
             culprit_deploy_id=diagnosis_data.get("culprit_deploy_id"),
             evidence_ids=list(diagnosis_data.get("evidence_ids", [])) if "evidence_ids" in diagnosis_data else [],
             confidence=float(diagnosis_data.get("confidence", 0.0)),
+            outcome_kind=str(diagnosis_data.get("outcome_kind", "unknown"))[:32],
+            outcome_reason=str(diagnosis_data.get("outcome_reason", "concluded_by_model"))[:64],
+            model_confidence=model_conf_str,
+            capped_confidence=capped_conf_float,
+            ledger_summary=diagnosis_data.get("ledger_summary"),
+            what_would_change=diagnosis_data.get("what_would_change"),
+            gate_rejection_count=int(diagnosis_data.get("gate_rejection_count", 0)),
             status=status,
         )
         self.session.add(new_diag)

@@ -1,0 +1,95 @@
+[
+  {
+    "step": "call_tool",
+    "tool": "get_metrics",
+    "args": {"service": "inventory", "metric": "latency_p95"},
+    "reason": "Measure inventory p95 latency around alert firing."
+  },
+  {
+    "step": "update_hypotheses",
+    "operations": [
+      {
+        "op": "add",
+        "statement": "External Redis dependency latency timeout on inventory stock reads",
+        "category": "dependency_failure",
+        "mechanism": "dependency_timeout",
+        "service": "inventory",
+        "confidence_label": "medium"
+      },
+      {
+        "op": "add",
+        "statement": "Recent inventory deployment introduced cache bypass latency",
+        "category": "bad_deploy",
+        "mechanism": "cache_bypass_latency",
+        "service": "inventory",
+        "confidence_label": "low"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_01",
+        "evidence_id": "$EV_0",
+        "relation": "supports"
+      }
+    ],
+    "reason": "Formulate dependency failure vs bad deploy competing hypotheses."
+  },
+  {
+    "step": "call_tool",
+    "tool": "search_logs",
+    "args": {"service": "inventory", "contains": "Redis"},
+    "tests_hypothesis_id": "hyp_01",
+    "expected_if_true": "Redis timeout log lines on inventory",
+    "expected_if_false": "No Redis timeout errors in inventory logs",
+    "reason": "Check inventory logs for Redis dependency timeouts."
+  },
+  {
+    "step": "call_tool",
+    "tool": "list_deploys",
+    "args": {"service": "inventory"},
+    "tests_hypothesis_id": "hyp_02",
+    "expected_if_true": "Recent inventory deployment correlated with breach",
+    "expected_if_false": "No recent inventory deployment in window",
+    "reason": "Discriminating test: check for any recent inventory deploy."
+  },
+  {
+    "step": "update_hypotheses",
+    "operations": [
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_01",
+        "evidence_id": "$EV_1",
+        "relation": "supports"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_02",
+        "evidence_id": "$EV_2",
+        "relation": "contradicts"
+      },
+      {
+        "op": "set_status",
+        "hypothesis_id": "hyp_01",
+        "status": "supported"
+      },
+      {
+        "op": "set_status",
+        "hypothesis_id": "hyp_02",
+        "status": "refuted"
+      }
+    ],
+    "reason": "Link Redis timeout logs to hyp_01 and refute deploy rival hyp_02."
+  },
+  {
+    "step": "conclude",
+    "leading_hypothesis_id": "hyp_01",
+    "diagnosis_draft": {
+      "root_cause_service": "inventory",
+      "root_cause_category": "dependency_failure",
+      "mechanism": "dependency_timeout",
+      "culprit_deploy_id": null,
+      "evidence_ids": ["$EV_0", "$EV_1"],
+      "confidence": 0.90
+    },
+    "reason": "If a hidden inventory deploy were found or Redis latency normalized, reconsider."
+  }
+]

@@ -114,6 +114,7 @@ def call_tool_node(
             "window": window_repr,
             "source": res.source,
             "data": res.data,
+            "tests_hypothesis_id": last_step.get("tests_hypothesis_id"),
             "args": tool_args,
         }
     elif isinstance(res, ToolError):
@@ -124,6 +125,7 @@ def call_tool_node(
             "error_code": res.error.code,
             "message": res.error.message,
             "details": res.error.details,
+            "tests_hypothesis_id": last_step.get("tests_hypothesis_id"),
             "args": tool_args,
         }
     else:
@@ -135,7 +137,42 @@ def call_tool_node(
             "args": tool_args,
         }
 
-    return {
+    updates: dict[str, Any] = {
         "transient_tool_result": result_dict,
         "remaining_calls": ctx.remaining_calls,
     }
+
+    if isinstance(res, ToolSuccess):
+        tests_hyp_id = last_step.get("tests_hypothesis_id")
+        if tests_hyp_id:
+            import hashlib
+            import json
+
+            args_hash = hashlib.sha256(
+                json.dumps(tool_args, sort_keys=True, default=str).encode("utf-8")
+            ).hexdigest()[:8]
+
+            test_run_entry = {
+                "evidence_id": res.evidence_id,
+                "tool": res.tool,
+                "args_hash": args_hash,
+                "expected_if_true": last_step.get("expected_if_true"),
+                "expected_if_false": last_step.get("expected_if_false"),
+            }
+
+            current_ledger = state.get("hypotheses_ledger") or {}
+            if tests_hyp_id in current_ledger:
+                hyp_entry = current_ledger[tests_hyp_id]
+                if hasattr(hyp_entry, "model_dump"):
+                    hyp_dict = hyp_entry.model_dump()
+                elif isinstance(hyp_entry, dict):
+                    hyp_dict = dict(hyp_entry)
+                else:
+                    hyp_dict = {"id": tests_hyp_id}
+
+                existing_tests = list(hyp_dict.get("tests_run") or [])
+                existing_tests.append(test_run_entry)
+                hyp_dict["tests_run"] = existing_tests
+                updates["hypotheses_ledger"] = {tests_hyp_id: hyp_dict}
+
+    return updates

@@ -44,7 +44,36 @@ class Diagnosis(BaseModel):
     confidence: float = Field(
         ge=0.0,
         le=1.0,
-        description="Self-reported diagnosis confidence score between 0.0 and 1.0",
+        description="Authoritative diagnosis confidence score between 0.0 and 1.0",
+    )
+    model_confidence: str | float | None = Field(
+        default=None,
+        description="Proposed model confidence label or raw value",
+    )
+    capped_confidence: float | None = Field(
+        default=None,
+        description="Deterministic confidence cap applied",
+    )
+    outcome_kind: str | None = Field(
+        default=None,
+        description="Resolved outcome kind (diagnosed, unknown, escalate)",
+    )
+    outcome_reason: str | None = Field(
+        default=None,
+        description="Typed outcome reason code",
+    )
+    ledger_summary: dict[str, Any] | None = Field(
+        default=None,
+        description="Summary of hypotheses, statuses, and refuted rivals with refuting evidence",
+    )
+    what_would_change: str | None = Field(
+        default=None,
+        description="Length-capped, quarantined display text explaining what would change this conclusion",
+    )
+    gate_rejection_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of contrary-evidence gate rejections during the run",
     )
 
 

@@ -277,7 +277,10 @@ def list_runs(
     "/{id}",
     response_model=RunDetailResponse,
     summary="Get Run",
-    description="Returns detailed investigation run state, evidence IDs, hypotheses, plan, and diagnosis.",
+    description=(
+        "Returns detailed investigation run state, evidence IDs, hypotheses, plan, "
+        "diagnosis (outcome kind, reason, capped confidence, ledger summary, gate rejections count)."
+    ),
 )
 def get_run(
     id: UUID,
@@ -322,6 +325,13 @@ def get_run(
             culprit_deploy_id=diag.culprit_deploy_id,
             evidence_ids=diag.evidence_ids,
             confidence=float(diag.confidence),
+            outcome_kind=diag.outcome_kind,
+            outcome_reason=diag.outcome_reason,
+            model_confidence=diag.model_confidence,
+            capped_confidence=float(diag.capped_confidence) if diag.capped_confidence is not None else None,
+            ledger_summary=diag.ledger_summary,
+            what_would_change=diag.what_would_change,
+            gate_rejection_count=diag.gate_rejection_count,
             created_at=diag.created_at,
         )
         if diag
@@ -342,6 +352,8 @@ def get_run(
         hypotheses=hypotheses,
         proposed_plan_id=proposed_plan_id,
         diagnosis=diag_summary,
+        ledger_summary=diag.ledger_summary if diag else None,
+        gate_rejection_count=diag.gate_rejection_count if diag else 0,
         created_at=run.created_at,
         updated_at=run.updated_at,
         finished_at=run.finished_at,

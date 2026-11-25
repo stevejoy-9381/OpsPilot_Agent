@@ -1,0 +1,110 @@
+[
+  {
+    "step": "call_tool",
+    "tool": "list_deploys",
+    "args": {"service": "inventory"},
+    "reason": "Inspect recent inventory deployments prior to latency breach."
+  },
+  {
+    "step": "update_hypotheses",
+    "operations": [
+      {
+        "op": "add",
+        "statement": "Inventory v1.2.0 deployment bypassed Redis cache causing DB contention",
+        "category": "bad_deploy",
+        "mechanism": "cache_bypass_latency",
+        "service": "inventory",
+        "confidence_label": "medium"
+      },
+      {
+        "op": "add",
+        "statement": "Orders database connection pool exhaustion causing cascade latency",
+        "category": "bad_deploy",
+        "mechanism": "connection_pool_exhaustion",
+        "service": "orders",
+        "confidence_label": "low"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_01",
+        "evidence_id": "$EV_0",
+        "relation": "supports"
+      }
+    ],
+    "reason": "Formulate competing hypotheses and link inventory v1.2.0 deploy."
+  },
+  {
+    "step": "call_tool",
+    "tool": "search_logs",
+    "args": {"service": "inventory", "contains": "Cache bypass"},
+    "tests_hypothesis_id": "hyp_01",
+    "expected_if_true": "Cache bypass log entries in inventory",
+    "expected_if_false": "No cache bypass logs in inventory",
+    "reason": "Verify cache bypass behavior in inventory logs."
+  },
+  {
+    "step": "call_tool",
+    "tool": "get_metrics",
+    "args": {"service": "inventory", "metric": "latency_p95"},
+    "tests_hypothesis_id": "hyp_01",
+    "expected_if_true": "Inventory p95 latency elevated above 0.25s",
+    "expected_if_false": "Inventory p95 latency normal",
+    "reason": "Confirm sustained latency elevation on inventory."
+  },
+  {
+    "step": "call_tool",
+    "tool": "search_logs",
+    "args": {"service": "orders", "contains": "cache_bypass"},
+    "tests_hypothesis_id": "hyp_02",
+    "expected_if_true": "Orders errors matching cascade",
+    "expected_if_false": "No matching errors on orders",
+    "reason": "Discriminating test against orders rival hypothesis."
+  },
+  {
+    "step": "update_hypotheses",
+    "operations": [
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_01",
+        "evidence_id": "$EV_1",
+        "relation": "supports"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_01",
+        "evidence_id": "$EV_2",
+        "relation": "supports"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_02",
+        "evidence_id": "$EV_3",
+        "relation": "contradicts"
+      },
+      {
+        "op": "set_status",
+        "hypothesis_id": "hyp_01",
+        "status": "supported"
+      },
+      {
+        "op": "set_status",
+        "hypothesis_id": "hyp_02",
+        "status": "refuted"
+      }
+    ],
+    "reason": "Ground hyp_01 with multi-source telemetry and refute orders rival."
+  },
+  {
+    "step": "conclude",
+    "leading_hypothesis_id": "hyp_01",
+    "diagnosis_draft": {
+      "root_cause_service": "inventory",
+      "root_cause_category": "bad_deploy",
+      "mechanism": "cache_bypass_latency",
+      "culprit_deploy_id": "deploy_inventory_v120",
+      "evidence_ids": ["$EV_0", "$EV_1", "$EV_2"],
+      "confidence": 0.90
+    },
+    "reason": "If cache bypass logs stop without rolling back deploy_inventory_v120, reconsider."
+  }
+]

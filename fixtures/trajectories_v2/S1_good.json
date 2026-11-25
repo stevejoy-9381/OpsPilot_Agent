@@ -1,0 +1,110 @@
+[
+  {
+    "step": "call_tool",
+    "tool": "list_deploys",
+    "args": {"service": "orders"},
+    "reason": "Inspect recent orders deployments prior to the threshold breach."
+  },
+  {
+    "step": "update_hypotheses",
+    "operations": [
+      {
+        "op": "add",
+        "statement": "Orders v1.3.0 deployment caused database connection pool exhaustion",
+        "category": "bad_deploy",
+        "mechanism": "connection_pool_exhaustion",
+        "service": "orders",
+        "confidence_label": "medium"
+      },
+      {
+        "op": "add",
+        "statement": "Inventory Redis dependency timeout cascading to orders checkout",
+        "category": "dependency_failure",
+        "mechanism": "dependency_timeout",
+        "service": "inventory",
+        "confidence_label": "low"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_01",
+        "evidence_id": "$EV_0",
+        "relation": "supports"
+      }
+    ],
+    "reason": "Formulate competing hypotheses and link orders v1.3.0 deploy evidence."
+  },
+  {
+    "step": "call_tool",
+    "tool": "search_logs",
+    "args": {"service": "orders", "level": "error"},
+    "tests_hypothesis_id": "hyp_01",
+    "expected_if_true": "DB connection pool exhausted errors in orders logs",
+    "expected_if_false": "No database pool errors in orders logs",
+    "reason": "Check orders error logs for connection pool exhaustion."
+  },
+  {
+    "step": "call_tool",
+    "tool": "get_metrics",
+    "args": {"service": "orders", "metric": "db_pool_in_use"},
+    "tests_hypothesis_id": "hyp_01",
+    "expected_if_true": "orders db_pool_in_use saturated at maximum",
+    "expected_if_false": "orders db_pool_in_use within normal bounds",
+    "reason": "Verify database connection pool saturation on orders."
+  },
+  {
+    "step": "call_tool",
+    "tool": "search_logs",
+    "args": {"service": "inventory", "contains": "pool"},
+    "tests_hypothesis_id": "hyp_02",
+    "expected_if_true": "Inventory connection pool or upstream cascade errors",
+    "expected_if_false": "Zero matching pool errors in inventory",
+    "reason": "Discriminating test: check inventory logs to test rival hypothesis."
+  },
+  {
+    "step": "update_hypotheses",
+    "operations": [
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_01",
+        "evidence_id": "$EV_1",
+        "relation": "supports"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_01",
+        "evidence_id": "$EV_2",
+        "relation": "supports"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_02",
+        "evidence_id": "$EV_3",
+        "relation": "contradicts"
+      },
+      {
+        "op": "set_status",
+        "hypothesis_id": "hyp_01",
+        "status": "supported"
+      },
+      {
+        "op": "set_status",
+        "hypothesis_id": "hyp_02",
+        "status": "refuted"
+      }
+    ],
+    "reason": "Link multi-source orders evidence to hyp_01 and refute rival hyp_02."
+  },
+  {
+    "step": "conclude",
+    "leading_hypothesis_id": "hyp_01",
+    "diagnosis_draft": {
+      "root_cause_service": "orders",
+      "root_cause_category": "bad_deploy",
+      "mechanism": "connection_pool_exhaustion",
+      "culprit_deploy_id": "deploy_orders_v130",
+      "evidence_ids": ["$EV_0", "$EV_1", "$EV_2"],
+      "confidence": 0.90
+    },
+    "reason": "If orders db_pool_in_use dropped without rollback of deploy_orders_v130, reconsider."
+  }
+]

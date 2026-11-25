@@ -15,6 +15,7 @@ Verifies:
 
 from __future__ import annotations
 
+import json
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,6 +25,10 @@ import pytest
 from agent.graph.context import (
     DEFAULT_MAX_PROMPT_TOKENS,
     EXPECTED_PROMPT_V1_HASH,
+    EXPECTED_PROMPT_V2_HASH,
+    PROMPT_HASHES_FILE,
+    SYSTEM_PROMPT_V1_PATH,
+    SYSTEM_PROMPT_V2_PATH,
     LeakageDetectedError,
     build_investigator_context,
     compute_prompt_hash,
@@ -97,17 +102,65 @@ def test_leakage_detector_triggers_on_forbidden_strings(sample_s1_alert: AlertEv
 
 
 def test_prompt_hash_matches_committed_and_detects_changes() -> None:
-    """Verifies that prompt hash matches the committed v1 hash and changes upon edits."""
-    prompt_text = load_system_prompt()
-    p_hash = compute_prompt_hash(prompt_text)
+    """Verifies that prompt hashes match the committed hashes and change upon edits."""
+    prompt_text_v1 = load_system_prompt(SYSTEM_PROMPT_V1_PATH)
+    p_hash_v1 = compute_prompt_hash(prompt_text_v1)
+    assert p_hash_v1 == EXPECTED_PROMPT_V1_HASH
 
-    # Hash matches committed baseline in prompt_changelog.md
-    assert p_hash == EXPECTED_PROMPT_V1_HASH
+    prompt_text_v2 = load_system_prompt(SYSTEM_PROMPT_V2_PATH)
+    p_hash_v2 = compute_prompt_hash(prompt_text_v2)
+    assert p_hash_v2 == EXPECTED_PROMPT_V2_HASH
 
     # Any modification must produce a different hash
-    modified_text = prompt_text + "\n<!-- Minor prompt revision -->"
+    modified_text = prompt_text_v2 + "\n<!-- Minor prompt revision -->"
     modified_hash = compute_prompt_hash(modified_text)
-    assert modified_hash != p_hash
+    assert modified_hash != p_hash_v2
+
+
+def test_prompt_governance_fails_if_edited_without_changelog_and_hash_bump() -> None:
+    """Verifies governance rule: editing a prompt without a hash bump in prompt_hashes.json
+    and prompt_changelog.md fails verification.
+    """
+    assert PROMPT_HASHES_FILE.exists(), f"Committed hash file {PROMPT_HASHES_FILE} is missing!"
+    with open(PROMPT_HASHES_FILE, encoding="utf-8") as f:
+        committed_hashes = json.load(f)
+
+    changelog_path = Path(__file__).parent.parent / "docs" / "prompt_changelog.md"
+    assert changelog_path.exists(), "prompt_changelog.md is missing!"
+    changelog_text = changelog_path.read_text(encoding="utf-8")
+
+    prompts_to_check = [
+        ("investigator_system_v1.md", SYSTEM_PROMPT_V1_PATH),
+        ("investigator_system_v2.md", SYSTEM_PROMPT_V2_PATH),
+    ]
+
+    for filename, filepath in prompts_to_check:
+        prompt_content = filepath.read_text(encoding="utf-8").strip()
+        computed_hash = compute_prompt_hash(prompt_content)
+
+        # 1. Must match committed hash in prompt_hashes.json
+        assert filename in committed_hashes, f"{filename} missing from {PROMPT_HASHES_FILE}"
+        assert computed_hash == committed_hashes[filename], (
+            f"Prompt {filename} was edited without updating committed hash in {PROMPT_HASHES_FILE}! "
+            f"Computed: {computed_hash}, Expected: {committed_hashes[filename]}"
+        )
+
+        # 2. Must be recorded in prompt_changelog.md
+        assert computed_hash in changelog_text, (
+            f"Prompt hash {computed_hash} for {filename} is NOT documented in {changelog_path}!"
+        )
+
+        # 3. Mutation test: modifying the prompt MUST break comparison against committed hash
+        tampered_content = prompt_content + "\n<!-- uncommitted edit -->"
+        tampered_hash = compute_prompt_hash(tampered_content)
+        assert tampered_hash != committed_hashes[filename]
+
+
+def test_prompt_v2_zero_leakage() -> None:
+    """Verifies that investigator_system_v2.md has ZERO benchmark leakage terms."""
+    prompt_text = load_system_prompt(SYSTEM_PROMPT_V2_PATH)
+    leaks = scan_for_leakage(prompt_text)
+    assert len(leaks) == 0, f"Leakage detected in investigator_system_v2.md: {leaks}"
 
 
 def test_digest_preserves_cited_ids_under_compaction(sample_s1_alert: AlertEvent) -> None:

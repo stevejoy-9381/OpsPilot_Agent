@@ -33,6 +33,7 @@ from agent.graph.nodes import (
     load_context_node,
     plan_step_node,
     record_node,
+    update_ledger_node,
 )
 from agent.graph.state import (
     InvestigationState,
@@ -44,11 +45,11 @@ from tools.registry import ToolRegistry
 
 logger = logging.getLogger("opspilot.agent.graph")
 
-DEFAULT_RECURSION_LIMIT: int = 25
+DEFAULT_RECURSION_LIMIT: int = 50
 
 
 def route_after_plan_step(state: InvestigationState) -> str:
-    """Pure conditional edge routing from plan_step to call_tool or conclude."""
+    """Pure conditional edge routing from plan_step to call_tool, update_ledger, or conclude."""
     # Check if a termination condition was flagged
     termination_reason = state.get("termination_reason")
     if termination_reason in (
@@ -64,6 +65,11 @@ def route_after_plan_step(state: InvestigationState) -> str:
     last_decision = state.get("last_step_decision") or {}
     step_type = last_decision.get("step")
     remaining_calls = state.get("remaining_calls", 8)
+    tool_trace = state.get("tool_trace") or []
+    ledger_update_count = state.get("ledger_update_count", 0)
+
+    if step_type == "update_hypotheses":
+        return "update_ledger"
 
     if step_type == "call_tool":
         if remaining_calls > 0:
@@ -71,6 +77,12 @@ def route_after_plan_step(state: InvestigationState) -> str:
         return "conclude"
 
     if step_type == "conclude":
+        # Mandatory ledger step: after the first tool result, route through update_ledger
+        # at least once before any conclude is accepted (enforced in router for v2 runs).
+        is_v2 = state.get("schema_version") == "v2"
+        if is_v2 and len(tool_trace) > 0 and ledger_update_count == 0:
+            logger.info("Router refusing conclude: mandatory ledger update step required after tool results")
+            return "plan_step"
         return "conclude"
 
     # If an invalid step occurred and cap not reached yet, retry planning
@@ -79,6 +91,13 @@ def route_after_plan_step(state: InvestigationState) -> str:
 
     # Default fallback
     return "conclude"
+
+
+def route_after_conclude(state: InvestigationState) -> str:
+    """Pure conditional edge routing from conclude node to plan_step (on gate retry) or finalize."""
+    if state.get("status") == "gate_rejected":
+        return "plan_step"
+    return "finalize"
 
 
 def build_investigator_graph(
@@ -119,8 +138,11 @@ def build_investigator_graph(
     def _record_node(state: InvestigationState) -> dict[str, Any]:
         return record_node(state=state, run_service=run_service)
 
+    def _update_ledger_node(state: InvestigationState) -> dict[str, Any]:
+        return update_ledger_node(state=state, run_service=run_service)
+
     def _conclude_node(state: InvestigationState) -> dict[str, Any]:
-        return conclude_node(state=state)
+        return conclude_node(state=state, run_service=run_service)
 
     def _finalize_node(state: InvestigationState) -> dict[str, Any]:
         return finalize_node(
@@ -134,6 +156,7 @@ def build_investigator_graph(
     workflow.add_node("plan_step", _plan_step_node)
     workflow.add_node("call_tool", _call_tool_node)
     workflow.add_node("record", _record_node)
+    workflow.add_node("update_ledger", _update_ledger_node)
     workflow.add_node("conclude", _conclude_node)
     workflow.add_node("finalize", _finalize_node)
 
@@ -146,6 +169,7 @@ def build_investigator_graph(
         route_after_plan_step,
         {
             "call_tool": "call_tool",
+            "update_ledger": "update_ledger",
             "conclude": "conclude",
             "plan_step": "plan_step",
         },
@@ -153,7 +177,15 @@ def build_investigator_graph(
 
     workflow.add_edge("call_tool", "record")
     workflow.add_edge("record", "plan_step")
-    workflow.add_edge("conclude", "finalize")
+    workflow.add_edge("update_ledger", "plan_step")
+    workflow.add_conditional_edges(
+        "conclude",
+        route_after_conclude,
+        {
+            "plan_step": "plan_step",
+            "finalize": "finalize",
+        },
+    )
     workflow.add_edge("finalize", END)
 
     # 4. Resolve checkpointer

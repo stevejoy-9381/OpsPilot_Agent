@@ -21,11 +21,25 @@
 
 ---
 
-### Candidate v2 (Proposed for Feature 6)
-- **Status**: Proposed / Under Evaluation (DO NOT commit to `investigator_system_v1.md` in Feature 5)
-- **Target Version**: `investigator_system_v2.md` (Feature 6: Hypothesis/Contrary Evidence & Action Proposals)
-- **Proposed Enhancements**:
-  1. **Explicit In-Prompt Step Schemas**: Directly provide the JSON representation of `{step: "call_tool", tool, args, reason}` and `{step: "conclude", diagnosis_draft, reason}` in Section 7 of the prompt to prevent schema ambiguity on models or providers without polymorphic structured output support.
-  2. **Hypothesis / Contrary Evidence Formulation**: Structure the turn decision around explicit dual hypotheses (e.g. `primary_hypothesis`, `competing_hypothesis`, and `disconfirming_query`) to actively prevent confirmation bias when analyzing decoy deploys (such as S4).
-  3. **Multi-Turn Telemetry Quota Efficiency**: Guidance encouraging batching or prioritizing high-information queries (such as cross-service latency metrics or recent deploys) in initial turns to minimize LLM round-trips and preserve API quota under constrained provider tiers.
-  4. **Strict False Alarm Verification**: Add explicit instruction that an alert breach without corresponding latency/error elevation or log anomalies across the incident window should prompt checking for spurious threshold breaches before attributing code or infrastructure causes.
+### `investigator_system_v2.md` (Committed & Frozen)
+- **Date**: 2026-11-25
+- **Prompt Path**: `agent/prompts/investigator_system_v2.md`
+- **Previous Prompt Hash (v1)**: `7c065736fe3721bba931953c9378015603f54f132a30446dd345a10472dad315`
+- **New Prompt Hash (v2 SHA-256)**: `ade9f1e57fb55a291ed7ec472428abe4e8497b9ab39a2a985fbd3f3efa0cb97a`
+- **Hash Computation**: `SHA-256(system_prompt_text + "\n---TOOL_SPECS---\n" + canonical_json(tool_specs))`
+- **Leakage Scan Status**: PASS (Zero hits across forbidden family names, forbidden terms, and scenario IDs).
+- **Freeze Status**: FROZEN (No edits permitted after first reported run of v2).
+- **Description / Operational Reason**:
+  Implements the Feature 6 hypothesis tracking and contrary-evidence method:
+  1. Competing Hypotheses: Formulates and maintains at least two plausible, different explanations across services, mechanisms, or categories.
+  2. Targeted Testing: Every tool query cites `tests_hypothesis_id` and explicit expectations (`expected_if_true`, `expected_if_false`).
+  3. Disconfirmation Rule: Mandates at least one test designed to refute or discriminate the leading hypothesis before concluding.
+  4. Explicit Linkage: Newly observed evidence IDs must be explicitly linked on the ledger as `supports` or `contradicts`.
+  5. Multi-Source Telemetry: Grounding a conclusion requires evidence from at least two independent source kinds (metrics, logs, traces, deploys).
+  6. Epistemic Conclusion Options: Specific diagnosis, unknown (with reason), or escalate (for multiple concurrent causes or unavailable telemetry).
+  7. Contrary-Evidence Gate Awareness: Instructs the model that the system mechanically verifies the ledger and may issue typed rejections.
+- **Specific v1 Failures Targeted**:
+  1. **S4 Decoy Deploy Confirmation Bias**: Prevents latching onto the first observed deploy by requiring competing hypotheses across different services and mandatory disconfirming queries.
+  2. **S5 False Alarm Misattribution**: Mandates empirical metrics verification of post-alert baseline return before attributing root causes.
+  3. **Single-Source Overconfidence**: Eliminates single-metric premature conclusions by enforcing $\ge 2$ independent source kinds.
+  4. **Self-Reported Confidence Inflation**: Disregards model self-reported confidence in favor of deterministic confidence capping.

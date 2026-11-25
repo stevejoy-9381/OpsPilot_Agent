@@ -34,14 +34,20 @@ from tools.registry import registry
 
 logger = logging.getLogger("opspilot.agent.context")
 
-DEFAULT_SYSTEM_PROMPT_PATH = (
-    Path(__file__).parent.parent / "prompts" / "investigator_system_v1.md"
-)
+PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+SYSTEM_PROMPT_V1_PATH = PROMPTS_DIR / "investigator_system_v1.md"
+SYSTEM_PROMPT_V2_PATH = PROMPTS_DIR / "investigator_system_v2.md"
+DEFAULT_SYSTEM_PROMPT_PATH = SYSTEM_PROMPT_V1_PATH
+PROMPT_HASHES_FILE = PROMPTS_DIR / "prompt_hashes.json"
 DEFAULT_MAX_PROMPT_TOKENS = 4000
 
 # Canonical prompt hash computed from investigator_system_v1.md and baseline tool specifications
 EXPECTED_PROMPT_V1_HASH = (
     "7c065736fe3721bba931953c9378015603f54f132a30446dd345a10472dad315"
+)
+# Canonical prompt hash computed from investigator_system_v2.md and baseline tool specifications
+EXPECTED_PROMPT_V2_HASH = (
+    "ade9f1e57fb55a291ed7ec472428abe4e8497b9ab39a2a985fbd3f3efa0cb97a"
 )
 
 # ---------------------------------------------------------------------------
@@ -114,9 +120,15 @@ def estimate_tokens(text: str) -> int:
     return max(1, len(text) // 4)
 
 
-def load_system_prompt(prompt_path: Path | str | None = None) -> str:
+def load_system_prompt(prompt_path: Path | str | None = None, version: str = "v1") -> str:
     """Loads the versioned system prompt markdown document from disk."""
-    path = Path(prompt_path) if prompt_path else DEFAULT_SYSTEM_PROMPT_PATH
+    if prompt_path:
+        path = Path(prompt_path)
+    elif version == "v2":
+        path = SYSTEM_PROMPT_V2_PATH
+    else:
+        path = SYSTEM_PROMPT_V1_PATH
+
     if not path.exists():
         raise FileNotFoundError(f"System prompt file not found: {path}")
     return path.read_text(encoding="utf-8").strip()
@@ -137,7 +149,7 @@ def get_canonical_tool_specs_text(compact: bool = False) -> str:
             "description": desc_summary,
             "parameters": s.parameters,
         })
-    return json.dumps(compact_specs, sort_keys=True, indent=2)
+    return json.dumps(compact_specs, sort_keys=True, separators=(",", ":"))
 
 
 def compute_prompt_hash(system_prompt: str, tool_specs_text: str | None = None) -> str:
@@ -166,6 +178,31 @@ class AssembledContext:
     user_prompt_tokens: int
     evidence_count: int
     compacted: bool
+
+
+def format_ledger_digest(hypotheses_ledger: dict[str, Any] | None) -> str:
+    """Formats a compact human- and LLM-readable summary of the hypothesis ledger."""
+    if not hypotheses_ledger:
+        return "- No hypotheses currently tracked on the ledger."
+    lines: list[str] = []
+    for hyp_id, hyp in sorted(hypotheses_ledger.items()):
+        if isinstance(hyp, dict):
+            status = hyp.get("status", "open")
+            statement = hyp.get("statement", "")
+            supp_count = len(hyp.get("supporting_evidence_ids") or [])
+            cont_count = len(hyp.get("contrary_evidence_ids") or [])
+            tests_count = len(hyp.get("tests_run") or [])
+        else:
+            status = getattr(hyp, "status", "open")
+            statement = getattr(hyp, "statement", "")
+            supp_count = len(getattr(hyp, "supporting_evidence_ids", ()) or ())
+            cont_count = len(getattr(hyp, "contrary_evidence_ids", ()) or ())
+            tests_count = len(getattr(hyp, "tests_run", ()) or ())
+        lines.append(
+            f"- `{hyp_id}` [{status}]: {statement} "
+            f"(supporting: {supp_count}, contrary: {cont_count}, tests: {tests_count})"
+        )
+    return "\n".join(lines)
 
 
 def format_evidence_digest(
@@ -227,7 +264,8 @@ def build_investigator_context(
         enforce_zero_leakage: If True, raises LeakageDetectedError on benchmark leaks.
         forced_conclude: If True, renders forced-conclusion prompt variant omitting tool specs.
     """
-    system_prompt = load_system_prompt(prompt_path)
+    version = state.get("schema_version", "v1")
+    system_prompt = load_system_prompt(prompt_path, version=version)
 
     # Canonical full tool specs text for immutable hash calculation
     canonical_specs_text = get_canonical_tool_specs_text(compact=False)
@@ -241,13 +279,34 @@ def build_investigator_context(
         else json.dumps(raw_alert, indent=2, sort_keys=True)
     )
 
-    # 2. Determine protected evidence IDs from draft diagnosis
+    # 2. Determine protected evidence IDs from draft diagnosis and hypothesis ledger
     protected_ids: set[str] = set()
     draft = state.get("draft_diagnosis")
     if isinstance(draft, dict):
         protected_ids.update(draft.get("evidence_ids", []))
     elif hasattr(draft, "evidence_ids"):
         protected_ids.update(getattr(draft, "evidence_ids", []))
+
+    ledger_dict = state.get("hypotheses_ledger") or {}
+    for hyp in ledger_dict.values():
+        if isinstance(hyp, dict):
+            for ev_id in hyp.get("supporting_evidence_ids") or []:
+                protected_ids.add(str(ev_id))
+            for ev_id in hyp.get("contrary_evidence_ids") or []:
+                protected_ids.add(str(ev_id))
+            for tr in hyp.get("tests_run") or []:
+                if isinstance(tr, dict) and tr.get("evidence_id"):
+                    protected_ids.add(str(tr["evidence_id"]))
+        elif hasattr(hyp, "supporting_evidence_ids"):
+            for ev_id in getattr(hyp, "supporting_evidence_ids", ()):
+                protected_ids.add(str(ev_id))
+            for ev_id in getattr(hyp, "contrary_evidence_ids", ()):
+                protected_ids.add(str(ev_id))
+            for tr in getattr(hyp, "tests_run", ()):
+                if isinstance(tr, dict) and tr.get("evidence_id"):
+                    protected_ids.add(str(tr["evidence_id"]))
+
+    ledger_text = format_ledger_digest(ledger_dict)
 
     # 3. Format evidence digest
     evidence_ids = list(state.get("evidence_ids", []))
@@ -270,6 +329,18 @@ def build_investigator_context(
 
     is_forced = forced_conclude or remaining_calls <= 0
 
+    last_step_rejection = state.get("last_step_rejection")
+    rejection_section = ""
+    if last_step_rejection:
+        rejection_section = f"""
+### Previous Step Rejection Feedback
+```json
+{json.dumps(last_step_rejection, indent=2)}
+```
+CRITICAL: Your previous step was rejected by the deterministic validation gate.
+Please address the gate rejection violations with refutation or corroborating telemetry before concluding.
+"""
+
     # 4. Build user turn content
     def render_user_prompt(digest: str, history: str) -> str:
         if is_forced:
@@ -277,13 +348,16 @@ def build_investigator_context(
 ```json
 {alert_event_json}
 ```
-
+{rejection_section}
 ### Operational Budget
 - Investigation Step Turn: {step_count + 1}
 - Tool Budget Status: Exhausted (0 remaining allowed queries)
 
 ### Topology Context
 {STATIC_TOPOLOGY_SUMMARY}
+
+### Hypothesis Ledger ({len(ledger_dict)} items)
+{ledger_text}
 
 ### Evidence Collected So Far ({len(evidence_ids)} items)
 {digest}
@@ -302,13 +376,16 @@ Remember: your `reason` must be plain text and at most 300 characters."""
 ```json
 {alert_event_json}
 ```
-
+{rejection_section}
 ### Operational Budget
 - Investigation Step Turn: {step_count + 1}
 - Remaining Allowed Tool Queries: {remaining_calls}
 
 ### Topology Context
 {STATIC_TOPOLOGY_SUMMARY}
+
+### Hypothesis Ledger ({len(ledger_dict)} items)
+{ledger_text}
 
 ### Authorized Investigation Tool Specifications
 ```json
@@ -334,16 +411,17 @@ Remember: your `reason` must be plain text and at most 300 characters."""
     total_tokens = sys_tokens + user_tokens
 
     # 5. Progressive compaction if over token cap (never dropping protected IDs)
+    active_evidence_text = evidence_text
     if total_tokens > max_prompt_tokens:
         # Step A: Compact older non-protected evidence summaries
         if len(evidence_ids) > 2:
-            evidence_text_compact, compacted = format_evidence_digest(
+            active_evidence_text, compacted = format_evidence_digest(
                 evidence_ids=evidence_ids,
                 tool_trace=tool_trace,
                 protected_ids=protected_ids,
                 compact_older=True,
             )
-            user_content = render_user_prompt(evidence_text_compact, step_history_text)
+            user_content = render_user_prompt(active_evidence_text, step_history_text)
             user_tokens = estimate_tokens(user_content)
             total_tokens = sys_tokens + user_tokens
 
@@ -353,7 +431,7 @@ Remember: your `reason` must be plain text and at most 300 characters."""
             if len(history_lines) > 3:
                 compacted = True
                 windowed_history = "\n".join(history_lines[-3:])
-                user_content = render_user_prompt(evidence_text, windowed_history)
+                user_content = render_user_prompt(active_evidence_text, windowed_history)
                 user_tokens = estimate_tokens(user_content)
                 total_tokens = sys_tokens + user_tokens
 

@@ -42,6 +42,7 @@ ALLOWED_TRANSITIONS: frozenset[tuple[str, str]] = frozenset(
         ("queued", "escalated"),
         ("queued", "failed"),
         ("investigating", "needs_review"),
+        ("investigating", "completed"),
         ("investigating", "escalated"),
         ("investigating", "failed"),
         ("needs_review", "approved"),

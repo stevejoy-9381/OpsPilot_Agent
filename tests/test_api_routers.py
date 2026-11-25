@@ -398,6 +398,12 @@ def test_runs_get_detail_and_aggregates(client, test_setup, db_session):
         culprit_deploy_id="dep_c0ffee",
         evidence_ids=["ev_metric_01"],
         confidence=0.95,
+        outcome_kind="diagnosed",
+        outcome_reason="concluded_by_model",
+        model_confidence="high",
+        capped_confidence=0.95,
+        ledger_summary={"hypotheses": [], "rivals_refuted": []},
+        gate_rejection_count=0,
     )
     # Add plan
     plan_id = uuid.uuid4()
@@ -437,6 +443,11 @@ def test_runs_get_detail_and_aggregates(client, test_setup, db_session):
     assert data["hypotheses"][0]["mechanism"] == "connection_pool_exhaustion"
     assert data["proposed_plan_id"] == str(plan_id)
     assert data["diagnosis"]["root_cause_service"] == "orders"
+    assert data["diagnosis"]["outcome_kind"] == "diagnosed"
+    assert data["diagnosis"]["outcome_reason"] == "concluded_by_model"
+    assert data["diagnosis"]["capped_confidence"] == 0.95
+    assert data["ledger_summary"] == {"hypotheses": [], "rivals_refuted": []}
+    assert data["gate_rejection_count"] == 0
 
 
 # ===========================================================================

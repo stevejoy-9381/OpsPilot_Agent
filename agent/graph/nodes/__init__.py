@@ -12,6 +12,7 @@ from agent.graph.nodes.plan_step import (
     plan_step_node,
 )
 from agent.graph.nodes.record import record_node
+from agent.graph.nodes.update_ledger import update_ledger_node
 
 __all__ = [
     "PlanStepConfig",
@@ -21,4 +22,5 @@ __all__ = [
     "load_context_node",
     "plan_step_node",
     "record_node",
+    "update_ledger_node",
 ]

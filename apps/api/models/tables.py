@@ -14,10 +14,12 @@ from sqlalchemy import (
     BigInteger,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -324,7 +326,10 @@ class AllowedTransitionModel(Base):
 
 class HypothesisModel(Base):
     __tablename__ = "hypotheses"
-    __table_args__ = {"schema": "app"}
+    __table_args__ = (
+        UniqueConstraint("run_id", "id", name="uq_hypotheses_run_id"),
+        {"schema": "app"},
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
@@ -346,12 +351,62 @@ class HypothesisModel(Base):
     contrary_evidence_ids: Mapped[list[str]] = mapped_column(
         ARRAY(Text), nullable=False, default=list
     )
+    tests_run: Mapped[list[Any]] = mapped_column(
+        JSONB, nullable=False, default=list
+    )
     confidence: Mapped[float] = mapped_column(Numeric(3, 2), nullable=False)
+    created_step: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_step: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp(), nullable=False
     )
 
     run: Mapped[RunModel] = relationship("RunModel", back_populates="hypotheses")
+    evidence_links: Mapped[list[HypothesisEvidenceModel]] = relationship(
+        "HypothesisEvidenceModel", back_populates="hypothesis", cascade="all, delete-orphan"
+    )
+
+
+class HypothesisEvidenceModel(Base):
+    __tablename__ = "hypothesis_evidence"
+    __table_args__ = (
+        UniqueConstraint("hypothesis_id", "evidence_id", "relation", name="uq_hypothesis_evidence_triple"),
+        ForeignKeyConstraint(
+            ["run_id", "hypothesis_id"],
+            ["app.hypotheses.run_id", "app.hypotheses.id"],
+            ondelete="CASCADE",
+            name="fk_hypothesis_evidence_hypothesis",
+        ),
+        ForeignKeyConstraint(
+            ["run_id", "evidence_id"],
+            ["app.observations.run_id", "app.observations.evidence_id"],
+            ondelete="CASCADE",
+            name="fk_hypothesis_evidence_observation",
+        ),
+        {"schema": "app"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("app.tenants.id", ondelete="RESTRICT"), nullable=False
+    )
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("app.runs.id", ondelete="CASCADE"), nullable=False
+    )
+    hypothesis_id: Mapped[uuid.UUID] = mapped_column(
+        PG_UUID(as_uuid=True), nullable=False
+    )
+    evidence_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    relation: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp(), nullable=False
+    )
+
+    hypothesis: Mapped[HypothesisModel] = relationship(
+        "HypothesisModel", back_populates="evidence_links", foreign_keys=[hypothesis_id]
+    )
 
 
 class DiagnosisModel(Base):
@@ -375,6 +430,13 @@ class DiagnosisModel(Base):
         ARRAY(Text), nullable=False, default=list
     )
     confidence: Mapped[float] = mapped_column(Numeric(3, 2), nullable=False)
+    outcome_kind: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")
+    outcome_reason: Mapped[str] = mapped_column(String(64), nullable=False, default="concluded_by_model")
+    model_confidence: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    capped_confidence: Mapped[float | None] = mapped_column(Numeric(3, 2), nullable=True)
+    ledger_summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    what_would_change: Mapped[str | None] = mapped_column(Text, nullable=True)
+    gate_rejection_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp(), nullable=False

@@ -47,6 +47,7 @@ def record_node(
         ok=ok,
         error_code=error_code,
         evidence_id=evidence_id,
+        tests_hypothesis_id=tool_result.get("tests_hypothesis_id"),
     )
 
     run_id_str = state.get("run_id")

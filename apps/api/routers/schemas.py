@@ -129,7 +129,7 @@ class HypothesisSummary(BaseModel):
 
 
 class DiagnosisSummary(BaseModel):
-    """Summary of an investigation diagnosis."""
+    """Summary of an investigation diagnosis with deterministic outcome and confidence cap."""
 
     id: UUID
     root_cause_service: str | None = None
@@ -138,6 +138,34 @@ class DiagnosisSummary(BaseModel):
     culprit_deploy_id: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
     confidence: float
+    outcome_kind: str = Field(
+        default="unknown",
+        description="Resolved outcome kind: diagnosed, unknown, or escalate",
+    )
+    outcome_reason: str = Field(
+        default="concluded_by_model",
+        description="Typed outcome reason code (e.g. concluded_by_model, false_alarm_no_action, gate_not_satisfied)",
+    )
+    model_confidence: str | None = Field(
+        default=None,
+        description="Model-proposed confidence label or value before deterministic capping",
+    )
+    capped_confidence: float | None = Field(
+        default=None,
+        description="Deterministic confidence cap applied by the contrary-evidence gate",
+    )
+    ledger_summary: dict[str, Any] | None = Field(
+        default=None,
+        description="Summary of hypotheses, statuses, and refuted rivals with refuting evidence",
+    )
+    what_would_change: str | None = Field(
+        default=None,
+        description="Length-capped, quarantined display text describing what would change this conclusion",
+    )
+    gate_rejection_count: int = Field(
+        default=0,
+        description="Number of contrary-evidence gate rejections emitted during the run",
+    )
     created_at: datetime
 
 
@@ -157,6 +185,14 @@ class RunDetailResponse(BaseModel):
     hypotheses: list[HypothesisSummary] = Field(default_factory=list)
     proposed_plan_id: UUID | None = None
     diagnosis: DiagnosisSummary | None = None
+    ledger_summary: dict[str, Any] | None = Field(
+        default=None,
+        description="Hypothesis ledger summary including refuted rivals and refuting evidence",
+    )
+    gate_rejection_count: int = Field(
+        default=0,
+        description="Number of contrary-evidence gate rejections during the run",
+    )
     created_at: datetime
     updated_at: datetime
     finished_at: datetime | None = None

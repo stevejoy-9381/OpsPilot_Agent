@@ -16,6 +16,7 @@ from agent.graph.state import InvestigationState
 from apps.api.domain.context import TenantContext
 from apps.api.models.tables import RunModel
 from apps.api.services.run_service import RunService
+from evals.graders.models import Diagnosis
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,8 @@ class HandoffPort(ABC):
         run_id: UUID,
         state: InvestigationState,
         expected_version: int | None = None,
+        diagnosis: Diagnosis | None = None,
+        ledger_summary: dict[str, Any] | None = None,
     ) -> HandoffResult:
         """Proposes handoff for a concluded investigation.
 
@@ -48,14 +51,16 @@ class HandoffPort(ABC):
             run_id: Identifier of the run.
             state: InvestigationState containing draft diagnosis and audit evidence.
             expected_version: Optional expected run version for optimistic concurrency control.
+            diagnosis: Optional validated Diagnosis artifact from finalize.
+            ledger_summary: Optional summary of hypotheses and refuted rivals.
         """
         ...
 
 
 class DefaultHandoffStub(HandoffPort):
-    """Default stub implementation of HandoffPort for Feature 5.
+    """Default stub implementation of HandoffPort for Feature 5/6.
 
-    Since downstream action planning and policy validation are built in Feature 6/7,
+    Since downstream action planning and policy validation are built in Feature 7,
     the default stub marks the run as 'escalated' with reason
     'investigation_complete_no_planner'. This ensures every investigated run reaches a
     defined, audited terminal state under optimistic locking.
@@ -70,6 +75,8 @@ class DefaultHandoffStub(HandoffPort):
         run_id: UUID,
         state: InvestigationState,
         expected_version: int | None = None,
+        diagnosis: Diagnosis | None = None,
+        ledger_summary: dict[str, Any] | None = None,
     ) -> HandoffResult:
         if expected_version is None:
             current_run: RunModel = self.run_service.run_repo.get_by_id(ctx, run_id)
@@ -77,6 +84,7 @@ class DefaultHandoffStub(HandoffPort):
         else:
             version = expected_version
 
+        diag_payload = diagnosis.model_dump() if diagnosis is not None else state.get("draft_diagnosis")
         reason = "investigation_complete_no_planner"
         updated_run, event = self.run_service.transition(
             ctx=ctx,
@@ -87,7 +95,8 @@ class DefaultHandoffStub(HandoffPort):
             payload={
                 "reason": reason,
                 "notes": "Handoff stub reached terminal state; planner not configured.",
-                "draft_diagnosis": state.get("draft_diagnosis"),
+                "draft_diagnosis": diag_payload,
+                "ledger_summary": ledger_summary,
             },
         )
         return HandoffResult(

@@ -1,0 +1,46 @@
+[
+  {
+    "step": "call_tool",
+    "tool": "get_metrics",
+    "args": {"service": "orders", "metric": "error_rate"},
+    "reason": "Verify whether error rate returned to baseline post-surge."
+  },
+  {
+    "step": "update_hypotheses",
+    "operations": [
+      {
+        "op": "add",
+        "statement": "Transient traffic burst returned to baseline without persistent failure",
+        "category": "false_alarm",
+        "mechanism": "none",
+        "service": null,
+        "confidence_label": "high"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_01",
+        "evidence_id": "$EV_0",
+        "relation": "supports"
+      },
+      {
+        "op": "set_status",
+        "hypothesis_id": "hyp_01",
+        "status": "supported"
+      }
+    ],
+    "reason": "Record baseline-return metric evidence for transient surge."
+  },
+  {
+    "step": "conclude",
+    "leading_hypothesis_id": "hyp_01",
+    "diagnosis_draft": {
+      "root_cause_service": null,
+      "root_cause_category": "false_alarm",
+      "mechanism": "none",
+      "culprit_deploy_id": null,
+      "evidence_ids": ["$EV_0"],
+      "confidence": 0.90
+    },
+    "reason": "If error rate remained elevated at end of window, would not classify as benign."
+  }
+]

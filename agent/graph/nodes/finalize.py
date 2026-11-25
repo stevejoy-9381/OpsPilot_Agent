@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -43,15 +43,73 @@ from apps.api.models.tables import ObservationModel
 from apps.api.services.run_service import RunService
 from evals.graders.evidence import grade_evidence_support
 from evals.graders.models import Diagnosis, EvidenceItem
+from tools.common.sanitize import quarantine
 
 logger = logging.getLogger("opspilot.agent.finalize")
+
+
+def _build_ledger_summary(state: InvestigationState) -> dict[str, Any]:
+    """Builds a compact summary of hypotheses, statuses, and refuted rivals with evidence."""
+    ledger_dict = state.get("hypotheses_ledger") or {}
+    hypotheses: list[dict[str, Any]] = []
+    rivals_refuted: list[dict[str, Any]] = []
+
+    for h_id, h_data in ledger_dict.items():
+        if not isinstance(h_data, dict):
+            continue
+        status = str(h_data.get("status", "open"))
+        supp = list(h_data.get("supporting_evidence_ids") or [])
+        contra = list(h_data.get("contrary_evidence_ids") or [])
+        hypotheses.append(
+            {
+                "id": h_id,
+                "statement": h_data.get("statement", ""),
+                "category": h_data.get("category", "unknown"),
+                "mechanism": h_data.get("mechanism", "unknown"),
+                "service": h_data.get("service"),
+                "status": status,
+                "supporting_evidence_ids": supp,
+                "contrary_evidence_ids": contra,
+            }
+        )
+        if status == "refuted":
+            rivals_refuted.append(
+                {
+                    "id": h_id,
+                    "statement": h_data.get("statement", ""),
+                    "refuting_evidence_ids": contra,
+                }
+            )
+
+    return {
+        "hypotheses": hypotheses,
+        "rivals_refuted": rivals_refuted,
+    }
+
+
+def _extract_what_would_change(state: InvestigationState, max_chars: int = 500) -> str | None:
+    """Extracts, length-caps, and quarantines the model's 'what would change' note."""
+    last_step = state.get("last_step_decision")
+    raw_note: str | None = None
+    if isinstance(last_step, dict):
+        raw_note = last_step.get("what_would_change") or last_step.get("reason")
+    elif last_step is not None:
+        raw_note = getattr(last_step, "what_would_change", None) or getattr(last_step, "reason", None)
+
+    if not raw_note or not str(raw_note).strip():
+        return None
+
+    return quarantine(
+        str(raw_note).strip(),
+        origin="model_conclusion_note",
+        max_chars=max_chars,
+    ).text
 
 ALLOWED_TOOL_SOURCES: set[str] = {
     "prometheus",
     "logs",
     "traces",
     "deploys",
-    "diff",
     "get_metrics",
     "search_logs",
     "get_trace",
@@ -121,30 +179,20 @@ def finalize_node(
         if isinstance(item, EvidenceItem):
             evidence_lookup[item.evidence_id] = item
         elif isinstance(item, ObservationModel):
-            raw_src = getattr(item, "source_id", None) or getattr(item, "tool", "telemetry")
-            src_str = str(raw_src) if raw_src is not None else "telemetry"
-            src = src_str.split(":")[0] if ":" in src_str else src_str
-            ts_val = item.window_end or item.captured_at
+            src = str(getattr(item, "source_id", None) or getattr(item, "tool", "telemetry"))
             evidence_lookup[item.evidence_id] = EvidenceItem(
                 evidence_id=item.evidence_id,
-                timestamp=ts_val,
+                timestamp=item.captured_at,
                 source=src,
             )
         elif isinstance(item, dict):
-            raw_src = item.get("source_id") or item.get("tool") or item.get("source", "telemetry")
-            src_str = str(raw_src) if raw_src is not None else "telemetry"
-            src = src_str.split(":")[0] if ":" in src_str else src_str
-            ts_raw = item.get("window_end") or item.get("captured_at") or item.get("timestamp")
-            if isinstance(ts_raw, str):
-                ts = datetime.fromisoformat(ts_raw)
-            elif isinstance(ts_raw, datetime):
-                ts = ts_raw
-            else:
-                ts = datetime.now(timezone.utc)
+            ts = item.get("captured_at") or item.get("timestamp")
+            if isinstance(ts, str):
+                ts = datetime.fromisoformat(ts)
             evidence_lookup[item["evidence_id"]] = EvidenceItem(
                 evidence_id=item["evidence_id"],
-                timestamp=ts,
-                source=src,
+                timestamp=ts or datetime.now(),
+                source=item.get("tool") or item.get("source", "telemetry"),
             )
 
     # 2. Extract and parse current diagnosis draft
@@ -162,6 +210,11 @@ def finalize_node(
             confidence=0.0,
         )
 
+    is_v2 = state.get("schema_version") == "v2"
+    ledger_summary = _build_ledger_summary(state) if is_v2 else None
+    what_would_change = _extract_what_would_change(state) if is_v2 else None
+    gate_rejection_count = int(state.get("gate_rejection_count", 0))
+
     # 3. Reuse grade_evidence_support to validate groundedness and incident window
     eval_window = incident_window or _extract_incident_window(state)
     grade = grade_evidence_support(
@@ -178,11 +231,9 @@ def finalize_node(
 
     if rejected_ids:
         logger.warning(
-            "Rejecting %d invalid/out-of-window citations: invalid=%s out_of_window=%s unauthorized=%s",
+            "Rejecting %d invalid/out-of-window citations: %s",
             len(rejected_ids),
-            grade.invalid_ids,
-            grade.out_of_window_ids,
-            grade.unauthorized_tool_ids,
+            rejected_ids,
         )
         if run_service:
             run_service.append_event(
@@ -214,6 +265,13 @@ def finalize_node(
                 culprit_deploy_id=None,
                 evidence_ids=[],
                 confidence=0.0,
+                model_confidence=diagnosis.model_confidence,
+                capped_confidence=0.0 if is_v2 else None,
+                outcome_kind="unknown" if is_v2 else None,
+                outcome_reason="unsupported_by_recorded_evidence" if is_v2 else None,
+                ledger_summary=ledger_summary,
+                what_would_change=what_would_change,
+                gate_rejection_count=gate_rejection_count,
             )
             if run_service:
                 run_service.append_event(
@@ -235,7 +293,38 @@ def finalize_node(
                 culprit_deploy_id=diagnosis.culprit_deploy_id,
                 evidence_ids=valid_evidence_ids,
                 confidence=diagnosis.confidence,
+                model_confidence=diagnosis.model_confidence,
+                capped_confidence=diagnosis.capped_confidence,
+                outcome_kind=diagnosis.outcome_kind,
+                outcome_reason=diagnosis.outcome_reason,
+                ledger_summary=ledger_summary,
+                what_would_change=what_would_change,
+                gate_rejection_count=gate_rejection_count,
             )
+    elif is_v2:
+        # Enrich v2 Diagnosis with ledger_summary, what_would_change, outcome metadata
+        resolved_kind = diagnosis.outcome_kind or (
+            "unknown" if diagnosis.root_cause_category == "unknown" else "diagnosed"
+        )
+        resolved_reason = diagnosis.outcome_reason or (
+            state.get("termination_reason")
+            or ("false_alarm_no_action" if diagnosis.root_cause_category == "false_alarm" else "concluded_by_model")
+        )
+        diagnosis = Diagnosis(
+            root_cause_service=diagnosis.root_cause_service,
+            root_cause_category=diagnosis.root_cause_category,
+            mechanism=diagnosis.mechanism,
+            culprit_deploy_id=diagnosis.culprit_deploy_id,
+            evidence_ids=diagnosis.evidence_ids,
+            confidence=diagnosis.confidence,
+            model_confidence=diagnosis.model_confidence,
+            capped_confidence=diagnosis.capped_confidence,
+            outcome_kind=resolved_kind,
+            outcome_reason=resolved_reason,
+            ledger_summary=ledger_summary,
+            what_would_change=what_would_change,
+            gate_rejection_count=gate_rejection_count,
+        )
 
     # 4. Persist diagnosis draft in app.diagnoses with status 'draft'
     if run_service:
@@ -251,7 +340,9 @@ def finalize_node(
 
     # 5. Non-terminal marker state inside graph: concluded_draft
     termination_reason = (
-        state.get("termination_reason") or TerminationReason.CONCLUDED_BY_MODEL.value
+        diagnosis.outcome_reason
+        or state.get("termination_reason")
+        or TerminationReason.CONCLUDED_BY_MODEL.value
     )
     state_updates: dict[str, Any] = {
         "draft_diagnosis": diagnosis.model_dump(),
@@ -260,39 +351,109 @@ def finalize_node(
         "termination_reason": termination_reason,
     }
 
-    # 6. Call Handoff Port
-    effective_handoff = handoff_port or (
-        DefaultHandoffStub(run_service) if run_service else None
-    )
-    if effective_handoff:
-        try:
-            merged_state: dict[str, Any] = dict(state)
-            merged_state.update(state_updates)
-            handoff_res = effective_handoff.propose(
+    # 6. Run status mapping through RunService (v2) or HandoffPort
+    def _resolve_version() -> int:
+        if expected_version is not None:
+            return expected_version
+        if run_service and hasattr(run_service, "run_repo") and hasattr(run_service.run_repo, "get_by_id"):
+            return int(run_service.run_repo.get_by_id(tenant_ctx, run_id).version)
+        return 1
+
+    try:
+        if is_v2 and run_service and diagnosis.outcome_kind == "diagnosed" and diagnosis.root_cause_category == "false_alarm":
+            # Option A: false_alarm -> completed with action no_action recorded
+            ver = _resolve_version()
+            updated_run, event = run_service.transition(
                 ctx=tenant_ctx,
                 run_id=run_id,
-                state=merged_state,  # type: ignore[arg-type]
-                expected_version=expected_version,
+                to_status="completed",
+                actor="investigator",
+                expected_version=ver,
+                payload={
+                    "reason": termination_reason,
+                    "action": "no_action",
+                    "outcome_kind": "diagnosed",
+                },
             )
-            state_updates["status"] = handoff_res.target_status
+            run_service.append_event(
+                ctx=tenant_ctx,
+                run_id=run_id,
+                event_type="no_action_recorded",
+                actor="investigator",
+                payload={
+                    "action": "no_action",
+                    "reason": termination_reason,
+                    "evidence_ids": diagnosis.evidence_ids,
+                },
+            )
+            state_updates["status"] = updated_run.status
             state_updates["handoff_result"] = {
-                "target_status": handoff_res.target_status,
-                "reason": handoff_res.reason,
+                "target_status": updated_run.status,
+                "reason": termination_reason,
+                "action": "no_action",
             }
-        except ConcurrentModificationError as cm_err:
-            logger.error(
-                "Optimistic locking conflict during handoff for run %s: expected %s, got %s",
-                cm_err.entity_id,
-                cm_err.expected_version,
-                cm_err.actual_version,
+        elif is_v2 and run_service and diagnosis.outcome_kind in ("unknown", "escalate"):
+            # unknown / escalate -> escalated with typed reason stored in last_error/diagnosis and an event
+            ver = _resolve_version()
+            error_payload = {
+                "code": termination_reason,
+                "outcome_kind": diagnosis.outcome_kind,
+                "message": f"Investigation concluded with {diagnosis.outcome_kind}: {termination_reason}",
+            }
+            updated_run, event = run_service.transition(
+                ctx=tenant_ctx,
+                run_id=run_id,
+                to_status="escalated",
+                actor="investigator",
+                expected_version=ver,
+                payload={
+                    "reason": termination_reason,
+                    "outcome_kind": diagnosis.outcome_kind,
+                    "error": error_payload,
+                },
             )
-            state_updates["last_error"] = {
-                "code": "concurrent_modification",
-                "entity_id": str(cm_err.entity_id),
-                "expected_version": cm_err.expected_version,
-                "actual_version": cm_err.actual_version,
-                "message": f"Run {cm_err.entity_id} was modified concurrently",
+            if hasattr(run_service, "run_repo") and hasattr(run_service.run_repo, "record_error"):
+                run_service.run_repo.record_error(tenant_ctx, run_id, error_payload)
+            state_updates["last_error"] = error_payload
+            state_updates["status"] = updated_run.status
+            state_updates["handoff_result"] = {
+                "target_status": updated_run.status,
+                "reason": termination_reason,
             }
-            state_updates["status"] = "failed"
+        else:
+            effective_handoff = handoff_port or (
+                DefaultHandoffStub(run_service) if run_service else None
+            )
+            if effective_handoff:
+                merged_state: dict[str, Any] = dict(state)
+                merged_state.update(state_updates)
+                handoff_res = effective_handoff.propose(
+                    ctx=tenant_ctx,
+                    run_id=run_id,
+                    state=merged_state,  # type: ignore[arg-type]
+                    expected_version=expected_version,
+                    diagnosis=diagnosis,
+                    ledger_summary=ledger_summary,
+                )
+                state_updates["status"] = handoff_res.target_status
+                state_updates["handoff_result"] = {
+                    "target_status": handoff_res.target_status,
+                    "reason": handoff_res.reason,
+                }
+    except ConcurrentModificationError as cm_err:
+        logger.error(
+            "Optimistic locking conflict during handoff for run %s: expected %s, got %s",
+            cm_err.entity_id,
+            cm_err.expected_version,
+            cm_err.actual_version,
+        )
+        state_updates["last_error"] = {
+            "code": "concurrent_modification",
+            "entity_id": str(cm_err.entity_id),
+            "expected_version": cm_err.expected_version,
+            "actual_version": cm_err.actual_version,
+            "message": f"Run {cm_err.entity_id} was modified concurrently",
+        }
+        state_updates["status"] = "failed"
 
     return state_updates

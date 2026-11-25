@@ -1,0 +1,101 @@
+[
+  {
+    "step": "call_tool",
+    "tool": "list_deploys",
+    "args": {"service": "orders"},
+    "reason": "Check recent deployments across orders prior to alert."
+  },
+  {
+    "step": "update_hypotheses",
+    "operations": [
+      {
+        "op": "add",
+        "statement": "Orders v1.1.0 deployment caused downstream latency degradation",
+        "category": "bad_deploy",
+        "mechanism": "cache_bypass_latency",
+        "service": "orders",
+        "confidence_label": "low"
+      },
+      {
+        "op": "add",
+        "statement": "Redis dependency timeout on inventory stock lookups",
+        "category": "dependency_failure",
+        "mechanism": "dependency_timeout",
+        "service": "inventory",
+        "confidence_label": "medium"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_01",
+        "evidence_id": "$EV_0",
+        "relation": "supports"
+      }
+    ],
+    "reason": "Register decoy orders deploy hypothesis and competing Redis dependency hypothesis."
+  },
+  {
+    "step": "call_tool",
+    "tool": "get_metrics",
+    "args": {"service": "inventory", "metric": "latency_p95"},
+    "tests_hypothesis_id": "hyp_02",
+    "expected_if_true": "Inventory p95 latency spiked above threshold",
+    "expected_if_false": "Inventory p95 latency normal",
+    "reason": "Measure inventory p95 latency."
+  },
+  {
+    "step": "call_tool",
+    "tool": "search_logs",
+    "args": {"service": "inventory", "contains": "Redis"},
+    "tests_hypothesis_id": "hyp_01",
+    "expected_if_true": "Orders deploy errors rather than Redis timeouts",
+    "expected_if_false": "Redis cache read timeout logs on inventory",
+    "reason": "Discriminating test: inspect inventory logs to refute decoy deploy."
+  },
+  {
+    "step": "update_hypotheses",
+    "operations": [
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_02",
+        "evidence_id": "$EV_1",
+        "relation": "supports"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_02",
+        "evidence_id": "$EV_2",
+        "relation": "supports"
+      },
+      {
+        "op": "link_evidence",
+        "hypothesis_id": "hyp_01",
+        "evidence_id": "$EV_2",
+        "relation": "contradicts"
+      },
+      {
+        "op": "set_status",
+        "hypothesis_id": "hyp_02",
+        "status": "supported"
+      },
+      {
+        "op": "set_status",
+        "hypothesis_id": "hyp_01",
+        "status": "refuted"
+      }
+    ],
+    "reason": "Refute decoy orders deploy hyp_01 with Redis dependency evidence and support hyp_02."
+  },
+  {
+    "step": "conclude",
+    "leading_hypothesis_id": "hyp_02",
+    "diagnosis_draft": {
+      "root_cause_service": "inventory",
+      "root_cause_category": "dependency_failure",
+      "mechanism": "dependency_timeout",
+      "culprit_deploy_id": null,
+      "evidence_ids": ["$EV_1", "$EV_2"],
+      "confidence": 0.75
+    },
+    "reason": "If Redis dependency timeouts ceased and orders v1.1.0 showed errors, reconsider."
+  }
+]

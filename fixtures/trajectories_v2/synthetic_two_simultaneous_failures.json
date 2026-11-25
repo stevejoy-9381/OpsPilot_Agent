@@ -1,0 +1,116 @@
+{
+  "synthetic": true,
+  "description": "SYNTHETIC hand-built two-simultaneous-failure snapshot: concurrent orders DB pool exhaustion and inventory Redis dependency timeout.",
+  "expected_outcome_kind": "escalate",
+  "expected_outcome_reason": "multiple_concurrent_causes",
+  "trajectory": [
+    {
+      "step": "call_tool",
+      "tool": "search_logs",
+      "args": {"service": "orders", "level": "error"},
+      "reason": "Inspect orders error logs."
+    },
+    {
+      "step": "update_hypotheses",
+      "operations": [
+        {
+          "op": "add",
+          "statement": "Orders database connection pool exhausted",
+          "category": "bad_deploy",
+          "mechanism": "connection_pool_exhaustion",
+          "service": "orders",
+          "confidence_label": "high"
+        },
+        {
+          "op": "add",
+          "statement": "Inventory Redis dependency timeout",
+          "category": "dependency_failure",
+          "mechanism": "dependency_timeout",
+          "service": "inventory",
+          "confidence_label": "high"
+        },
+        {
+          "op": "link_evidence",
+          "hypothesis_id": "hyp_01",
+          "evidence_id": "$EV_0",
+          "relation": "supports"
+        }
+      ],
+      "reason": "Register orders pool hypothesis and inventory Redis hypothesis."
+    },
+    {
+      "step": "call_tool",
+      "tool": "get_metrics",
+      "args": {"service": "orders", "metric": "db_pool_in_use"},
+      "tests_hypothesis_id": "hyp_01",
+      "expected_if_true": "Orders pool saturated",
+      "expected_if_false": "Orders pool normal",
+      "reason": "Confirm orders pool saturation."
+    },
+    {
+      "step": "call_tool",
+      "tool": "search_logs",
+      "args": {"service": "inventory", "contains": "Redis"},
+      "tests_hypothesis_id": "hyp_02",
+      "expected_if_true": "Inventory Redis timeout errors",
+      "expected_if_false": "No Redis errors on inventory",
+      "reason": "Check inventory logs for independent Redis failure."
+    },
+    {
+      "step": "call_tool",
+      "tool": "get_metrics",
+      "args": {"service": "inventory", "metric": "latency_p95"},
+      "tests_hypothesis_id": "hyp_02",
+      "expected_if_true": "Inventory latency elevated",
+      "expected_if_false": "Inventory latency normal",
+      "reason": "Confirm inventory latency elevation."
+    },
+    {
+      "step": "update_hypotheses",
+      "operations": [
+        {
+          "op": "link_evidence",
+          "hypothesis_id": "hyp_01",
+          "evidence_id": "$EV_1",
+          "relation": "supports"
+        },
+        {
+          "op": "link_evidence",
+          "hypothesis_id": "hyp_02",
+          "evidence_id": "$EV_2",
+          "relation": "supports"
+        },
+        {
+          "op": "link_evidence",
+          "hypothesis_id": "hyp_02",
+          "evidence_id": "$EV_3",
+          "relation": "supports"
+        },
+        {
+          "op": "set_status",
+          "hypothesis_id": "hyp_01",
+          "status": "supported"
+        },
+        {
+          "op": "set_status",
+          "hypothesis_id": "hyp_02",
+          "status": "supported"
+        }
+      ],
+      "reason": "Both orders and inventory failures are independently supported."
+    },
+    {
+      "step": "conclude",
+      "leading_hypothesis_id": "hyp_01",
+      "diagnosis_draft": {
+        "root_cause_service": null,
+        "root_cause_category": "bad_deploy",
+        "mechanism": "connection_pool_exhaustion",
+        "culprit_deploy_id": null,
+        "evidence_ids": ["$EV_0", "$EV_1", "$EV_2", "$EV_3"],
+        "confidence": 0.30
+      },
+      "reason": "Two independent concurrent causes detected across orders and inventory; escalating."
+    }
+  ]
+}

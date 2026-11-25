@@ -40,17 +40,29 @@ class TerminationReason(str, Enum):
     TOKEN_BUDGET_EXCEEDED = "token_budget_exceeded"
     PROVIDER_ERROR_EXHAUSTED = "provider_error_exhausted"
     INVALID_STEP_CAP_REACHED = "invalid_step_cap_reached"
+    GATE_NOT_SATISFIED = "gate_not_satisfied"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+    CONTRADICTORY_EVIDENCE = "contradictory_evidence"
+    EVIDENCE_UNAVAILABLE = "evidence_unavailable"
+    MULTIPLE_CONCURRENT_CAUSES = "multiple_concurrent_causes"
+    FALSE_ALARM_NO_ACTION = "false_alarm_no_action"
 
 
 # Mapping from TerminationReason to final run status (operationalizing Section 5.1 of investigator design)
 TERMINATION_STATUS_MAP: dict[TerminationReason, str] = {
     TerminationReason.CONCLUDED_BY_MODEL: "needs_review",
+    TerminationReason.FALSE_ALARM_NO_ACTION: "needs_review",
     TerminationReason.BUDGET_EXHAUSTED: "escalated",
     TerminationReason.STEP_CAP_REACHED: "escalated",
     TerminationReason.TIMEOUT_EXCEEDED: "escalated",
     TerminationReason.TOKEN_BUDGET_EXCEEDED: "escalated",
     TerminationReason.PROVIDER_ERROR_EXHAUSTED: "escalated",
     TerminationReason.INVALID_STEP_CAP_REACHED: "escalated",
+    TerminationReason.GATE_NOT_SATISFIED: "escalated",
+    TerminationReason.INSUFFICIENT_EVIDENCE: "escalated",
+    TerminationReason.CONTRADICTORY_EVIDENCE: "escalated",
+    TerminationReason.EVIDENCE_UNAVAILABLE: "escalated",
+    TerminationReason.MULTIPLE_CONCURRENT_CAUSES: "escalated",
 }
 
 
@@ -80,6 +92,7 @@ class ToolCallRecordRef(BaseModel):
     ok: bool = Field(default=True, description="True if tool returned success envelope")
     error_code: str | None = Field(default=None, description="Error code if tool execution failed")
     evidence_id: str | None = Field(default=None, description="Generated evidence citation ID")
+    tests_hypothesis_id: str | None = Field(default=None, description="Hypothesis targeted by this tool call")
     approx_tokens: int = Field(default=0, ge=0, description="Approximate token weight of response")
 
     @classmethod
@@ -102,6 +115,7 @@ class ToolCallRecordRef(BaseModel):
                 ok=bool(record.get("ok", True)),
                 error_code=record.get("error_code"),
                 evidence_id=record.get("evidence_id"),
+                tests_hypothesis_id=record.get("tests_hypothesis_id"),
                 approx_tokens=int(record.get("approx_tokens", 0)),
             )
 
@@ -159,6 +173,19 @@ def append_tool_trace(
     return result
 
 
+def merge_hypotheses_ledger(
+    current: dict[str, dict[str, Any]] | None,
+    new_ledger: dict[str, dict[str, Any]] | None,
+) -> dict[str, dict[str, Any]]:
+    """Reducer for hypotheses ledger merging lightweight summary maps by hypothesis_id."""
+    result = dict(current) if current else {}
+    if not new_ledger:
+        return result
+    for hyp_id, hyp_data in new_ledger.items():
+        result[hyp_id] = hyp_data
+    return result
+
+
 class InvestigationState(TypedDict, total=False):
     """Authoritative LangGraph state schema for incident investigation.
 
@@ -188,6 +215,13 @@ class InvestigationState(TypedDict, total=False):
     total_tokens_consumed: int
     last_step_decision: dict[str, Any] | None
     transient_tool_result: dict[str, Any] | None
+    hypotheses_ledger: Annotated[dict[str, dict[str, Any]], merge_hypotheses_ledger]
+    ledger_update_count: int
+    gate_rejection_count: int
+    last_step_rejection: dict[str, Any] | None
+    max_steps: int
+    max_tool_calls: int
+    schema_version: str
 
 
 class InvestigationStateModel(BaseModel):
@@ -212,6 +246,13 @@ class InvestigationStateModel(BaseModel):
     total_tokens_consumed: int = Field(default=0, ge=0)
     last_step_decision: dict[str, Any] | None = None
     transient_tool_result: dict[str, Any] | None = None
+    hypotheses_ledger: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    ledger_update_count: int = Field(default=0, ge=0)
+    gate_rejection_count: int = Field(default=0, ge=0)
+    last_step_rejection: dict[str, Any] | None = None
+    max_steps: int = Field(default=20, ge=1)
+    max_tool_calls: int = Field(default=8, ge=1)
+    schema_version: str = Field(default="v1")
 
 
 _STATE_TYPE_ADAPTER: TypeAdapter[InvestigationState] = TypeAdapter(InvestigationState)
@@ -223,6 +264,7 @@ def create_initial_state(
     incident_id: str,
     alert: AlertEvent | dict[str, Any],
     max_calls: int = 8,
+    schema_version: str = "v1",
 ) -> InvestigationState:
     """Creates a cleanly initialized InvestigationState dictionary."""
     alert_dict = alert.model_dump(mode="json") if isinstance(alert, AlertEvent) else dict(alert)
@@ -243,6 +285,13 @@ def create_initial_state(
         "invalid_step_count": 0,
         "total_tokens_consumed": 0,
         "last_step_decision": None,
+        "hypotheses_ledger": {},
+        "ledger_update_count": 0,
+        "gate_rejection_count": 0,
+        "last_step_rejection": None,
+        "max_tool_calls": max_calls,
+        "max_steps": 2 * max_calls + 4,
+        "schema_version": schema_version,
     }
 
 

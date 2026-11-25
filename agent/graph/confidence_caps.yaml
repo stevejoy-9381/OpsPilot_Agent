@@ -1,0 +1,29 @@
+caps:
+  - id: tool_error_during_discriminating_test
+    max_confidence: 0.30
+    category: low
+    description: "Any tool error occurred during a discriminating test"
+  - id: no_rival_tested
+    max_confidence: 0.30
+    category: low
+    description: "No rival hypothesis was tested or falsified"
+  - id: unrefuted_contrary_evidence
+    max_confidence: 0.30
+    category: low
+    description: "Unrefuted contrary evidence remains linked to leading hypothesis"
+  - id: single_source_support
+    max_confidence: 0.60
+    category: medium
+    description: "Leading hypothesis supported by only a single source kind (e.g., metrics only)"
+  - id: gate_satisfied_few_evidence
+    max_confidence: 0.75
+    category: medium
+    description: "Gate satisfied with 1 rival refuted, but total evidence items < 3"
+  - id: gate_satisfied_strong
+    max_confidence: 0.95
+    category: high
+    description: "Gate satisfied with >= 2 independent source kinds, rival refuted, zero tool errors, and >= 3 verified evidence items"
+  - id: false_alarm_certified
+    max_confidence: 0.90
+    category: high
+    description: "False alarm certified with baseline return evidence across full incident window"
