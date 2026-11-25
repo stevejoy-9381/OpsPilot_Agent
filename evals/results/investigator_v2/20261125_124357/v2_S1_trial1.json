@@ -1,0 +1,163 @@
+{
+  "alert": {
+    "alert_id": "alt_s1_001",
+    "fired_at": "2026-11-25T12:48:00Z",
+    "metric": "db_pool_in_use",
+    "observed_value": 10.0,
+    "resolved_at": null,
+    "rule_id": "orders_db_pool_saturation",
+    "service": "orders",
+    "severity": "CRITICAL",
+    "status": "firing",
+    "threshold": 7.0,
+    "window_seconds": 300
+  },
+  "backend": "snapshot",
+  "cost_estimate_usd": 0.0,
+  "diagnosis": {
+    "capped_confidence": 0.0,
+    "confidence": 0.0,
+    "culprit_deploy_id": null,
+    "evidence_ids": [],
+    "gate_rejection_count": 0,
+    "ledger_summary": {
+      "hypotheses": [],
+      "rivals_refuted": []
+    },
+    "mechanism": "unknown",
+    "model_confidence": 0.0,
+    "outcome_kind": "unknown",
+    "outcome_reason": "provider_error_exhausted",
+    "root_cause_category": "unknown",
+    "root_cause_service": null,
+    "what_would_change": null
+  },
+  "diagnosis_outcome": "provider_error",
+  "events": [
+    {
+      "actor": "investigator",
+      "event_type": "provider_error_escalated",
+      "payload": {
+        "error": {
+          "code": "provider_error",
+          "details": {
+            "exception_type": "ClientError"
+          },
+          "message": "400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Invalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema\\': Cannot find field.\\nInvalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema.properties[8].value.any_of[0]\\': Cannot find field.', 'status': 'INVALID_ARGUMENT', 'details': [{'@type': 'type.googleapis.com/google.rpc.BadRequest', 'fieldViolations': [{'field': 'generation_config.response_schema', 'description': 'Invalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema\\': Cannot find field.'}, {'field': 'generation_config.response_schema.properties[8].value.any_of[0]', 'description': 'Invalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema.properties[8].value.any_of[0]\\': Cannot find field.'}]}]}}"
+        },
+        "status": "escalated"
+      },
+      "run_id": "8ce20007-f553-4813-b02e-03e3fa185715",
+      "seq": 1
+    },
+    {
+      "actor": "investigator",
+      "event_type": "diagnosis_persisted",
+      "payload": {
+        "outcome_kind": "unknown"
+      },
+      "run_id": "8ce20007-f553-4813-b02e-03e3fa185715",
+      "seq": 2
+    },
+    {
+      "actor": "investigator",
+      "event_type": "status_transition",
+      "payload": {
+        "error": {
+          "code": "provider_error_exhausted",
+          "message": "Investigation concluded with unknown: provider_error_exhausted",
+          "outcome_kind": "unknown"
+        },
+        "outcome_kind": "unknown",
+        "reason": "provider_error_exhausted",
+        "to_status": "escalated"
+      },
+      "run_id": "8ce20007-f553-4813-b02e-03e3fa185715",
+      "seq": 3
+    }
+  ],
+  "evidence_ids": [],
+  "execution_wall_seconds": 0.405,
+  "final_status": "escalated",
+  "gate_rejection_count": 0,
+  "gate_rejections": [],
+  "git_sha": "afadbc2092ed45efc3305cf77d144d8cde43841b",
+  "grades": {
+    "diagnosis": {
+      "abstained": true,
+      "correct": false,
+      "matched_category": false,
+      "matched_culprit_deploy": false,
+      "matched_mechanism": false,
+      "matched_service": false,
+      "partial": false,
+      "reasons": [
+        "Agent explicitly abstained from diagnosis (unknown category or mechanism)"
+      ]
+    },
+    "evidence": {
+      "invalid_ids": [],
+      "out_of_window_ids": [],
+      "reasons": [
+        "Diagnosis cites zero supporting evidence IDs"
+      ],
+      "supported": false,
+      "total_count": 0,
+      "unauthorized_tool_ids": [],
+      "valid_count": 0
+    }
+  },
+  "hypotheses_count": 0,
+  "hypotheses_ledger": {},
+  "last_error": {
+    "code": "provider_error_exhausted",
+    "message": "Investigation concluded with unknown: provider_error_exhausted",
+    "outcome_kind": "unknown"
+  },
+  "latency_ms": 405.0,
+  "messages_summary": "",
+  "model_settings": {
+    "max_output_tokens": 1024,
+    "model": "gemini-3.5-flash",
+    "spending_cap_tokens_per_run": 50000,
+    "temperature": 0.0
+  },
+  "overcautious": false,
+  "overconfident": false,
+  "pricing_source": {
+    "checked_on": "2026-11-24",
+    "unverified": true
+  },
+  "prompt_hash": "ade9f1e57fb55a291ed7ec472428abe4e8497b9ab39a2a985fbd3f3efa0cb97a",
+  "provider_errors": [
+    {
+      "actor": "investigator",
+      "event_type": "provider_error_escalated",
+      "payload": {
+        "error": {
+          "code": "provider_error",
+          "details": {
+            "exception_type": "ClientError"
+          },
+          "message": "400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Invalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema\\': Cannot find field.\\nInvalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema.properties[8].value.any_of[0]\\': Cannot find field.', 'status': 'INVALID_ARGUMENT', 'details': [{'@type': 'type.googleapis.com/google.rpc.BadRequest', 'fieldViolations': [{'field': 'generation_config.response_schema', 'description': 'Invalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema\\': Cannot find field.'}, {'field': 'generation_config.response_schema.properties[8].value.any_of[0]', 'description': 'Invalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema.properties[8].value.any_of[0]\\': Cannot find field.'}]}]}}"
+        },
+        "status": "escalated"
+      },
+      "run_id": "8ce20007-f553-4813-b02e-03e3fa185715",
+      "seq": 1
+    }
+  ],
+  "remaining_calls": 8,
+  "scenario_id": "S1",
+  "step_count": 0,
+  "termination_reason": "provider_error_exhausted",
+  "tokens": {
+    "input_tokens_est": 0,
+    "output_tokens_est": 0,
+    "total_tokens": 0
+  },
+  "tool_calls_used": 0,
+  "tool_trace": [],
+  "trial": 1,
+  "version": "v2"
+}

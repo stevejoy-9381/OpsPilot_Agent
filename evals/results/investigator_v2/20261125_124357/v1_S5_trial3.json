@@ -1,0 +1,173 @@
+{
+  "alert": {
+    "alert_id": "alt_s5_001",
+    "fired_at": "2026-11-25T12:48:00Z",
+    "metric": "error_rate",
+    "observed_value": 0.08,
+    "resolved_at": null,
+    "rule_id": "orders_error_rate_surge",
+    "service": "orders",
+    "severity": "CRITICAL",
+    "status": "firing",
+    "threshold": 0.05,
+    "window_seconds": 300
+  },
+  "backend": "snapshot",
+  "cost_estimate_usd": 0.0,
+  "diagnosis": {
+    "capped_confidence": null,
+    "confidence": 0.0,
+    "culprit_deploy_id": null,
+    "evidence_ids": [],
+    "gate_rejection_count": 0,
+    "ledger_summary": null,
+    "mechanism": "unknown",
+    "model_confidence": null,
+    "outcome_kind": null,
+    "outcome_reason": null,
+    "root_cause_category": "unknown",
+    "root_cause_service": null,
+    "what_would_change": null
+  },
+  "diagnosis_outcome": "provider_error",
+  "events": [
+    {
+      "actor": "investigator",
+      "event_type": "provider_error_escalated",
+      "payload": {
+        "error": {
+          "code": "provider_error",
+          "details": {
+            "exception_type": "ClientError"
+          },
+          "message": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\\nPlease retry in 19h11m16.714983067s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://aistudio.google.com/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'description': 'Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.', 'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-3.6-flash', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '69076s'}]}}"
+        },
+        "status": "escalated"
+      },
+      "run_id": "23c39715-debc-47ab-a8a5-462fbff2f60f",
+      "seq": 1
+    },
+    {
+      "actor": "investigator",
+      "event_type": "diagnosis_persisted",
+      "payload": {
+        "outcome_kind": null
+      },
+      "run_id": "23c39715-debc-47ab-a8a5-462fbff2f60f",
+      "seq": 2
+    },
+    {
+      "actor": "investigator_handoff",
+      "event_type": "status_transition",
+      "payload": {
+        "draft_diagnosis": {
+          "capped_confidence": null,
+          "confidence": 0.0,
+          "culprit_deploy_id": null,
+          "evidence_ids": [],
+          "gate_rejection_count": 0,
+          "ledger_summary": null,
+          "mechanism": "unknown",
+          "model_confidence": null,
+          "outcome_kind": null,
+          "outcome_reason": null,
+          "root_cause_category": "unknown",
+          "root_cause_service": null,
+          "what_would_change": null
+        },
+        "ledger_summary": null,
+        "notes": "Handoff stub reached terminal state; planner not configured.",
+        "reason": "investigation_complete_no_planner",
+        "to_status": "escalated"
+      },
+      "run_id": "23c39715-debc-47ab-a8a5-462fbff2f60f",
+      "seq": 3
+    }
+  ],
+  "evidence_ids": [],
+  "execution_wall_seconds": 8.062,
+  "final_status": "escalated",
+  "gate_rejection_count": 0,
+  "gate_rejections": [],
+  "git_sha": "afadbc2092ed45efc3305cf77d144d8cde43841b",
+  "grades": {
+    "diagnosis": {
+      "abstained": true,
+      "correct": false,
+      "matched_category": false,
+      "matched_culprit_deploy": false,
+      "matched_mechanism": false,
+      "matched_service": false,
+      "partial": false,
+      "reasons": [
+        "Agent explicitly abstained from diagnosis (unknown category or mechanism)"
+      ]
+    },
+    "evidence": {
+      "invalid_ids": [],
+      "out_of_window_ids": [],
+      "reasons": [
+        "Diagnosis cites zero supporting evidence IDs"
+      ],
+      "supported": false,
+      "total_count": 0,
+      "unauthorized_tool_ids": [],
+      "valid_count": 0
+    }
+  },
+  "hypotheses_count": 0,
+  "hypotheses_ledger": {},
+  "last_error": {
+    "code": "provider_error",
+    "details": {
+      "exception_type": "ClientError"
+    },
+    "message": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\\nPlease retry in 19h11m16.714983067s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://aistudio.google.com/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'description': 'Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.', 'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-3.6-flash', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '69076s'}]}}"
+  },
+  "latency_ms": 8062.0,
+  "messages_summary": "",
+  "model_settings": {
+    "max_output_tokens": 1024,
+    "model": "gemini-3.5-flash",
+    "spending_cap_tokens_per_run": 50000,
+    "temperature": 0.0
+  },
+  "overcautious": false,
+  "overconfident": false,
+  "pricing_source": {
+    "checked_on": "2026-11-24",
+    "unverified": true
+  },
+  "prompt_hash": "7c065736fe3721bba931953c9378015603f54f132a30446dd345a10472dad315",
+  "provider_errors": [
+    {
+      "actor": "investigator",
+      "event_type": "provider_error_escalated",
+      "payload": {
+        "error": {
+          "code": "provider_error",
+          "details": {
+            "exception_type": "ClientError"
+          },
+          "message": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-3.6-flash, description: Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\\nPlease retry in 19h11m16.714983067s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://aistudio.google.com/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'description': 'Generate content requests per day limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.', 'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-3.6-flash', 'location': 'global'}, 'quotaValue': '20'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '69076s'}]}}"
+        },
+        "status": "escalated"
+      },
+      "run_id": "23c39715-debc-47ab-a8a5-462fbff2f60f",
+      "seq": 1
+    }
+  ],
+  "remaining_calls": 8,
+  "scenario_id": "S5",
+  "step_count": 0,
+  "termination_reason": "provider_error_exhausted",
+  "tokens": {
+    "input_tokens_est": 0,
+    "output_tokens_est": 0,
+    "total_tokens": 0
+  },
+  "tool_calls_used": 0,
+  "tool_trace": [],
+  "trial": 3,
+  "version": "v1"
+}

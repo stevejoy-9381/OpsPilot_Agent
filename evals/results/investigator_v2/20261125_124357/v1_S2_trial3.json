@@ -1,0 +1,323 @@
+{
+  "alert": {
+    "alert_id": "alt_s2_001",
+    "fired_at": "2026-11-25T12:46:00Z",
+    "metric": "latency_p95",
+    "observed_value": 0.85,
+    "resolved_at": null,
+    "rule_id": "inventory_latency_p95_breach",
+    "service": "inventory",
+    "severity": "CRITICAL",
+    "status": "firing",
+    "threshold": 0.25,
+    "window_seconds": 300
+  },
+  "backend": "snapshot",
+  "cost_estimate_usd": 0.002054,
+  "diagnosis": {
+    "capped_confidence": null,
+    "confidence": 0.0,
+    "culprit_deploy_id": null,
+    "evidence_ids": [
+      "ev_deploys_70f84eb3",
+      "ev_logs_9e62993d"
+    ],
+    "gate_rejection_count": 0,
+    "ledger_summary": null,
+    "mechanism": "unknown",
+    "model_confidence": null,
+    "outcome_kind": null,
+    "outcome_reason": null,
+    "root_cause_category": "unknown",
+    "root_cause_service": null,
+    "what_would_change": null
+  },
+  "diagnosis_outcome": "provider_error",
+  "events": [
+    {
+      "actor": "investigator",
+      "event_type": "agent_step",
+      "payload": {
+        "reason": "Check deployment history across services to see if a recent deploy coincided with the latency breach.",
+        "step_kind": "call_tool",
+        "temperature": 0.0,
+        "tokens": {
+          "input_tokens": 4082,
+          "output_tokens": 120,
+          "total_tokens": 4326
+        },
+        "tool": "list_deploys",
+        "total_tokens": 4326
+      },
+      "run_id": "5c69a16a-6c65-46b5-b2e9-5f65284f042e",
+      "seq": 1
+    },
+    {
+      "actor": "investigator",
+      "event_type": "tool_call",
+      "payload": {
+        "duration_ms": 14.999999984866008,
+        "error_code": null,
+        "evidence_id": "ev_deploys_70f84eb3",
+        "ok": true,
+        "tool": "list_deploys"
+      },
+      "run_id": "5c69a16a-6c65-46b5-b2e9-5f65284f042e",
+      "seq": 2
+    },
+    {
+      "actor": "investigator",
+      "event_type": "agent_step",
+      "payload": {
+        "reason": "Search logs for inventory service around the alert time to identify potential errors, cache misses, or database timeouts.",
+        "step_kind": "call_tool",
+        "temperature": 0.0,
+        "tokens": {
+          "input_tokens": 4180,
+          "output_tokens": 138,
+          "total_tokens": 4851
+        },
+        "tool": "search_logs",
+        "total_tokens": 9177
+      },
+      "run_id": "5c69a16a-6c65-46b5-b2e9-5f65284f042e",
+      "seq": 3
+    },
+    {
+      "actor": "investigator",
+      "event_type": "tool_call",
+      "payload": {
+        "duration_ms": 31.000000017229468,
+        "error_code": null,
+        "evidence_id": "ev_logs_9e62993d",
+        "ok": true,
+        "tool": "search_logs"
+      },
+      "run_id": "5c69a16a-6c65-46b5-b2e9-5f65284f042e",
+      "seq": 4
+    },
+    {
+      "actor": "investigator",
+      "event_type": "agent_step",
+      "payload": {
+        "reason": "Inspect slow traces for inventory service to determine if latency is spent in PostgreSQL, Redis cache miss/bypass, or internal processing.",
+        "step_kind": "call_tool",
+        "temperature": 0.0,
+        "tokens": {
+          "input_tokens": 4294,
+          "output_tokens": 147,
+          "total_tokens": 4986
+        },
+        "tool": "get_trace",
+        "total_tokens": 14163
+      },
+      "run_id": "5c69a16a-6c65-46b5-b2e9-5f65284f042e",
+      "seq": 5
+    },
+    {
+      "actor": "investigator",
+      "event_type": "tool_call",
+      "payload": {
+        "duration_ms": 16.00000000325963,
+        "error_code": null,
+        "evidence_id": "ev_trace_fc37fedf",
+        "ok": true,
+        "tool": "get_trace"
+      },
+      "run_id": "5c69a16a-6c65-46b5-b2e9-5f65284f042e",
+      "seq": 6
+    },
+    {
+      "actor": "investigator",
+      "event_type": "provider_error_escalated",
+      "payload": {
+        "error": {
+          "code": "provider_error",
+          "details": {
+            "exception_type": "ClientError"
+          },
+          "message": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-3.6-flash, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\\nPlease retry in 39.30507357s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://aistudio.google.com/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'description': 'Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.', 'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-3.6-flash', 'location': 'global'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '39s'}]}}"
+        },
+        "status": "escalated"
+      },
+      "run_id": "5c69a16a-6c65-46b5-b2e9-5f65284f042e",
+      "seq": 7
+    },
+    {
+      "actor": "investigator",
+      "event_type": "citation_rejected",
+      "payload": {
+        "invalid_ids": [],
+        "out_of_window_ids": [],
+        "rejected_ids": [
+          "ev_trace_fc37fedf"
+        ],
+        "unauthorized_tool_ids": [
+          "ev_trace_fc37fedf"
+        ]
+      },
+      "run_id": "5c69a16a-6c65-46b5-b2e9-5f65284f042e",
+      "seq": 8
+    },
+    {
+      "actor": "investigator",
+      "event_type": "diagnosis_persisted",
+      "payload": {
+        "outcome_kind": null
+      },
+      "run_id": "5c69a16a-6c65-46b5-b2e9-5f65284f042e",
+      "seq": 9
+    },
+    {
+      "actor": "investigator_handoff",
+      "event_type": "status_transition",
+      "payload": {
+        "draft_diagnosis": {
+          "capped_confidence": null,
+          "confidence": 0.0,
+          "culprit_deploy_id": null,
+          "evidence_ids": [
+            "ev_deploys_70f84eb3",
+            "ev_logs_9e62993d"
+          ],
+          "gate_rejection_count": 0,
+          "ledger_summary": null,
+          "mechanism": "unknown",
+          "model_confidence": null,
+          "outcome_kind": null,
+          "outcome_reason": null,
+          "root_cause_category": "unknown",
+          "root_cause_service": null,
+          "what_would_change": null
+        },
+        "ledger_summary": null,
+        "notes": "Handoff stub reached terminal state; planner not configured.",
+        "reason": "investigation_complete_no_planner",
+        "to_status": "escalated"
+      },
+      "run_id": "5c69a16a-6c65-46b5-b2e9-5f65284f042e",
+      "seq": 10
+    }
+  ],
+  "evidence_ids": [
+    "ev_deploys_70f84eb3",
+    "ev_logs_9e62993d",
+    "ev_trace_fc37fedf"
+  ],
+  "execution_wall_seconds": 21.533,
+  "final_status": "escalated",
+  "gate_rejection_count": 0,
+  "gate_rejections": [],
+  "git_sha": "afadbc2092ed45efc3305cf77d144d8cde43841b",
+  "grades": {
+    "diagnosis": {
+      "abstained": true,
+      "correct": false,
+      "matched_category": false,
+      "matched_culprit_deploy": false,
+      "matched_mechanism": false,
+      "matched_service": false,
+      "partial": false,
+      "reasons": [
+        "Agent explicitly abstained from diagnosis (unknown category or mechanism)"
+      ]
+    },
+    "evidence": {
+      "invalid_ids": [],
+      "out_of_window_ids": [],
+      "reasons": [
+        "All 2 cited evidence IDs exist, fall within the incident window, and use allowed tools."
+      ],
+      "supported": true,
+      "total_count": 2,
+      "unauthorized_tool_ids": [],
+      "valid_count": 2
+    }
+  },
+  "hypotheses_count": 0,
+  "hypotheses_ledger": {},
+  "last_error": {
+    "code": "provider_error",
+    "details": {
+      "exception_type": "ClientError"
+    },
+    "message": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-3.6-flash, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\\nPlease retry in 39.30507357s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://aistudio.google.com/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'description': 'Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.', 'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-3.6-flash', 'location': 'global'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '39s'}]}}"
+  },
+  "latency_ms": 21533.0,
+  "messages_summary": "Turn 1: call_tool(list_deploys) - Check deployment history across services to see if a recent deploy coincided with the latency breach.\nTurn 2: call_tool(search_logs) - Search logs for inventory service around the alert time to identify potential errors, cache misses, or database timeouts.\nTurn 3: call_tool(get_trace) - Inspect slow traces for inventory service to determine if latency is spent in PostgreSQL, Redis cache miss/bypass, or internal processing.",
+  "model_settings": {
+    "max_output_tokens": 1024,
+    "model": "gemini-3.5-flash",
+    "spending_cap_tokens_per_run": 50000,
+    "temperature": 0.0
+  },
+  "overcautious": false,
+  "overconfident": false,
+  "pricing_source": {
+    "checked_on": "2026-11-24",
+    "unverified": true
+  },
+  "prompt_hash": "7c065736fe3721bba931953c9378015603f54f132a30446dd345a10472dad315",
+  "provider_errors": [
+    {
+      "actor": "investigator",
+      "event_type": "provider_error_escalated",
+      "payload": {
+        "error": {
+          "code": "provider_error",
+          "details": {
+            "exception_type": "ClientError"
+          },
+          "message": "429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://aistudio.google.com/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-3.6-flash, description: Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.\\nPlease retry in 39.30507357s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://aistudio.google.com/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'description': 'Generate content requests per minute limit exceeded on Free Tier. See https://aistudio.google.com/docs/rate-limits.', 'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-3.6-flash', 'location': 'global'}, 'quotaValue': '5'}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '39s'}]}}"
+        },
+        "status": "escalated"
+      },
+      "run_id": "5c69a16a-6c65-46b5-b2e9-5f65284f042e",
+      "seq": 7
+    }
+  ],
+  "remaining_calls": 5,
+  "scenario_id": "S2",
+  "step_count": 3,
+  "termination_reason": "provider_error_exhausted",
+  "tokens": {
+    "input_tokens_est": 12038,
+    "output_tokens_est": 2125,
+    "total_tokens": 14163
+  },
+  "tool_calls_used": 3,
+  "tool_trace": [
+    {
+      "approx_tokens": 0,
+      "args_summary": "end=2026-11-25T12:50:00Z, limit=10, start=2026-11-25T12:00:00Z",
+      "duration_ms": 14.999999984866008,
+      "error_code": null,
+      "evidence_id": "ev_deploys_70f84eb3",
+      "ok": true,
+      "tests_hypothesis_id": null,
+      "tool": "list_deploys"
+    },
+    {
+      "approx_tokens": 0,
+      "args_summary": "end=2026-11-25T12:50:00Z, level=any, limit=20, service=inventory, start=2026-11-25T12:35:00Z",
+      "duration_ms": 31.000000017229468,
+      "error_code": null,
+      "evidence_id": "ev_logs_9e62993d",
+      "ok": true,
+      "tests_hypothesis_id": null,
+      "tool": "search_logs"
+    },
+    {
+      "approx_tokens": 0,
+      "args_summary": "end=2026-11-25T12:50:00Z, limit=3, min_duration_ms=500, service=inventory, start=2026-11-25T12:40:00Z",
+      "duration_ms": 16.00000000325963,
+      "error_code": null,
+      "evidence_id": "ev_trace_fc37fedf",
+      "ok": true,
+      "tests_hypothesis_id": null,
+      "tool": "get_trace"
+    }
+  ],
+  "trial": 3,
+  "version": "v1"
+}

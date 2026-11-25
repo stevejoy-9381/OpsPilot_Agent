@@ -43,3 +43,12 @@
   2. **S5 False Alarm Misattribution**: Mandates empirical metrics verification of post-alert baseline return before attributing root causes.
   3. **Single-Source Overconfidence**: Eliminates single-metric premature conclusions by enforcing $\ge 2$ independent source kinds.
   4. **Self-Reported Confidence Inflation**: Disregards model self-reported confidence in favor of deterministic confidence capping.
+
+## Candidate v3 (Proposed for Future Evaluation)
+- **Date**: 2026-11-25
+- **Status**: PROPOSAL ONLY (v2 prompt, `agent/graph/gate.py`, and `agent/graph/confidence_caps.yaml` remain frozen)
+- **Motivation from Live v1/v2 Comparison (`evals/results/investigator_v2/20261125_124357/`)**:
+  1. **Gemini `response_schema` Compatibility**: Strip `additionalProperties` / `additional_properties` when translating Pydantic schemas (`AgentStepV2`, `dict[str, Any]` tool args) for Gemini `generation_config.response_schema`, which rejected `15/15` `v2` runs (`400 INVALID_ARGUMENT`).
+  2. **Output Token Headroom & Compact Tool Args**: Increase `max_output_tokens` above `1024` (or compact ledger/timestamp fields) to prevent JSON truncation mid-string on multi-field step outputs.
+  3. **Rate-Limit & Quota Pacing**: Pace live requests below Free Tier 5 RPM (`12–15s` spacing or paid tier) and interleave `v1`/`v2` trials so daily quota exhaustion does not starve one version completely.
+  4. **Tighten Authorized Evidence Tool Guidance**: Remind the model in-prompt which evidence tools are authorized for the current run to reduce `citation_rejected` (`unauthorized_tool_ids`) events observed in `v1`.
