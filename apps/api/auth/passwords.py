@@ -24,13 +24,13 @@ _hasher = PasswordHasher(
 
 def hash_password(password: str) -> str:
     """Hashes a plaintext password using Argon2id."""
-    return _hasher.hash(password)
+    return str(_hasher.hash(password))
 
 
 def verify_password(password_hash: str, password: str) -> bool:
     """Verifies a plaintext password against an Argon2id hash in constant time."""
     try:
-        return _hasher.verify(password_hash, password)
+        return bool(_hasher.verify(password_hash, password))
     except (VerifyMismatchError, VerificationError):
         return False
     except Exception as e:

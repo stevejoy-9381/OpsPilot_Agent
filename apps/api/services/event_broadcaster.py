@@ -73,7 +73,7 @@ class EventBroadcaster:
             if pubsub:
                 await pubsub.close()
             if redis_client:
-                await redis_client.aclose()
+                await redis_client.close()
             pubsub = None
             redis_client = None
 
@@ -119,7 +119,7 @@ class EventBroadcaster:
                     pass
             if redis_client is not None:
                 try:
-                    await redis_client.aclose()
+                    await redis_client.close()
                 except Exception:
                     pass
 

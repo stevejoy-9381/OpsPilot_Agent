@@ -1,0 +1,49 @@
+[
+  {
+    "step": "call_tool",
+    "tool": "get_metrics",
+    "args": {
+      "service": "inventory",
+      "metric": "latency_p95"
+    },
+    "reason": "Checking latency metrics for inventory service."
+  },
+  {
+    "step": "call_tool",
+    "tool": "search_logs",
+    "args": {
+      "service": "inventory",
+      "level": "error"
+    },
+    "reason": "Searching inventory error logs for downstream connection timeout errors."
+  },
+  {
+    "step": "call_tool",
+    "tool": "list_deploys",
+    "args": {
+      "service": "inventory"
+    },
+    "reason": "Verifying whether any recent software deployment touched inventory."
+  },
+  {
+    "step": "call_tool",
+    "tool": "get_trace",
+    "args": {
+      "service": "inventory",
+      "errors_only": false
+    },
+    "reason": "Inspecting distributed trace spans for redis dependency latency."
+  },
+  {
+    "step": "conclude",
+    "diagnosis_draft": {
+      "root_cause_service": "inventory",
+      "root_cause_category": "dependency_failure",
+      "mechanism": "dependency_timeout",
+      "culprit_deploy_id": null,
+      "evidence_ids": ["$EVIDENCE_IDS"],
+      "confidence": 0.90
+    },
+    "reason": "Confirmed redis dependency timeout affecting inventory service without software deploy."
+  }
+]

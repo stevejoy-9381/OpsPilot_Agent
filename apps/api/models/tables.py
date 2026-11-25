@@ -137,6 +137,8 @@ class RunModel(Base):
     remaining_calls: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
     max_calls: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
     last_error: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    worker_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp(), nullable=False
     )
@@ -373,6 +375,7 @@ class DiagnosisModel(Base):
         ARRAY(Text), nullable=False, default=list
     )
     confidence: Mapped[float] = mapped_column(Numeric(3, 2), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="draft")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.clock_timestamp(), nullable=False
     )

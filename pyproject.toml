@@ -24,6 +24,7 @@ dependencies = [
     "opentelemetry-exporter-otlp==1.30.0",
     "opentelemetry-instrumentation-fastapi==0.51b0",
     "opentelemetry-instrumentation-httpx==0.51b0",
+    "argon2-cffi==23.1.0",
 ]
 
 [project.optional-dependencies]

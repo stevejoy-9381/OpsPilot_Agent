@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import time
 import uuid
 from typing import Any, TypeVar
@@ -14,7 +15,7 @@ except (ImportError, AttributeError):
     errors: Any = None  # type: ignore[no-redef]
     types: Any = None  # type: ignore[no-redef]
     _GENAI_AVAILABLE = False
-from pydantic import BaseModel, SecretStr, ValidationError
+from pydantic import BaseModel, SecretStr, TypeAdapter, ValidationError
 
 from agent.llm.interface import (
     LLMClient,
@@ -129,15 +130,28 @@ class GeminiClient(LLMClient):
             timeout_s=timeout_s,
         )
 
-        config = types.GenerateContentConfig(
-            system_instruction=system_instruction,
-            response_mime_type="application/json",
-            response_schema=response_schema,
-            max_output_tokens=max_output_tokens,
-            http_options=types.HttpOptions(
+        config_kwargs: dict[str, Any] = {
+            "system_instruction": system_instruction,
+            "response_mime_type": "application/json",
+            "max_output_tokens": max_output_tokens,
+            "http_options": types.HttpOptions(
                 timeout=int(timeout_s * 1000),
             ),
-        )
+        }
+        # Only pass response_schema if it is a concrete BaseModel subclass (google-genai rejects Annotated/Unions)
+        if isinstance(response_schema, type) and issubclass(response_schema, BaseModel):
+            config_kwargs["response_schema"] = response_schema
+        else:
+            schema_json = json.dumps(TypeAdapter(response_schema).json_schema(), indent=2)
+            schema_instruction = (
+                f"\n\nJSON Schema Requirement:\nYou must output valid JSON conforming strictly to this JSON Schema:\n{schema_json}"
+            )
+            if system_instruction:
+                config_kwargs["system_instruction"] = f"{system_instruction}{schema_instruction}"
+            elif contents and contents[-1].parts:
+                contents[-1].parts.append(types.Part.from_text(text=schema_instruction))
+
+        config = types.GenerateContentConfig(**config_kwargs)
 
         response: types.GenerateContentResponse | None = None
         last_error: Exception | None = None
@@ -199,12 +213,16 @@ class GeminiClient(LLMClient):
         raw_text = response.text or ""
         parsed_val: T | None = None
 
-        if hasattr(response, "parsed") and isinstance(response.parsed, response_schema):
+        if hasattr(response, "parsed") and isinstance(response_schema, type) and isinstance(response.parsed, response_schema):
             parsed_val = response.parsed
         else:
             try:
-                parsed_val = response_schema.model_validate_json(raw_text)
-            except ValidationError as val_err:
+                if hasattr(response_schema, "model_validate_json"):
+                    parsed_val = response_schema.model_validate_json(raw_text)
+                else:
+                    from pydantic import TypeAdapter
+                    parsed_val = TypeAdapter(response_schema).validate_json(raw_text)
+            except (ValidationError, Exception) as val_err:
                 return StructuredResult[T](
                     raw_text=raw_text,
                     token_usage=token_usage,

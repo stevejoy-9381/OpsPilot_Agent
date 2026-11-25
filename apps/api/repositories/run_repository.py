@@ -343,6 +343,46 @@ class RunRepository(BaseRepository):
         )
         return self.session.scalar(stmt)
 
+    def save_diagnosis(
+        self,
+        ctx: TenantContext,
+        run_id: UUID,
+        diagnosis_data: dict[str, Any],
+        status: str = "draft",
+    ) -> DiagnosisModel:
+        """Persists or updates a diagnosis record scoped to run and tenant."""
+        self.set_tenant_context(ctx)
+        self.get_by_id(ctx, run_id)  # Validate run exists for tenant
+
+        existing = self.get_run_diagnosis(ctx, run_id)
+        if existing:
+            existing.root_cause_service = diagnosis_data.get("root_cause_service")
+            existing.root_cause_category = diagnosis_data.get("root_cause_category", "unknown")
+            existing.mechanism = diagnosis_data.get("mechanism", "unknown")
+            existing.culprit_deploy_id = diagnosis_data.get("culprit_deploy_id")
+            existing.evidence_ids = list(diagnosis_data.get("evidence_ids", []))
+            existing.confidence = float(diagnosis_data.get("confidence", 0.0))
+            existing.status = status
+            self.session.flush()
+            self.session.refresh(existing)
+            return existing
+
+        new_diag = DiagnosisModel(
+            run_id=run_id,
+            tenant_id=ctx.tenant_id,
+            root_cause_service=diagnosis_data.get("root_cause_service"),
+            root_cause_category=diagnosis_data.get("root_cause_category", "unknown"),
+            mechanism=diagnosis_data.get("mechanism", "unknown"),
+            culprit_deploy_id=diagnosis_data.get("culprit_deploy_id"),
+            evidence_ids=list(diagnosis_data.get("evidence_ids", [])) if "evidence_ids" in diagnosis_data else [],
+            confidence=float(diagnosis_data.get("confidence", 0.0)),
+            status=status,
+        )
+        self.session.add(new_diag)
+        self.session.flush()
+        self.session.refresh(new_diag)
+        return new_diag
+
     def get_evidence_list(self, ctx: TenantContext, run_id: UUID) -> list[ObservationModel]:
         """Returns all observations for the run, ordered by captured_at."""
         self.set_tenant_context(ctx)

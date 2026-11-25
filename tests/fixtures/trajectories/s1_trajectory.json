@@ -1,0 +1,50 @@
+[
+  {
+    "step": "call_tool",
+    "tool": "get_metrics",
+    "args": {
+      "service": "orders",
+      "metric": "db_pool_in_use"
+    },
+    "reason": "Querying database connection pool utilization for orders service."
+  },
+  {
+    "step": "call_tool",
+    "tool": "search_logs",
+    "args": {
+      "service": "orders",
+      "level": "error"
+    },
+    "reason": "Searching orders error logs for database connection failure details."
+  },
+  {
+    "step": "call_tool",
+    "tool": "list_deploys",
+    "args": {
+      "service": "orders"
+    },
+    "reason": "Checking recent deployment history on orders service."
+  },
+  {
+    "step": "call_tool",
+    "tool": "get_deploy_diff",
+    "args": {
+      "service": "orders",
+      "old_version": "v1.0.0",
+      "new_version": "v1.3.0"
+    },
+    "reason": "Analyzing diff between v1.0.0 and v1.3.0 on orders."
+  },
+  {
+    "step": "conclude",
+    "diagnosis_draft": {
+      "root_cause_service": "orders",
+      "root_cause_category": "bad_deploy",
+      "mechanism": "connection_pool_exhaustion",
+      "culprit_deploy_id": "deploy_orders_v130",
+      "evidence_ids": ["$EVIDENCE_IDS"],
+      "confidence": 0.95
+    },
+    "reason": "Confirmed orders db pool exhaustion introduced in deploy v1.3.0."
+  }
+]

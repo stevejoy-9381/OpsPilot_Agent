@@ -20,7 +20,7 @@ from typing import Sequence
 # Instruction Detection Patterns
 # ---------------------------------------------------------------------------
 INSTRUCTION_PATTERNS: Sequence[re.Pattern[str]] = (
-    re.compile(r"\bignore\s+(?:all\s+)?previous\s+(?:instructions|prompts?|commands?)\b", re.IGNORECASE),
+    re.compile(r"\bignore\s+(?:all\s+)?(?:previous|prior)\s+(?:instructions|prompts?|commands?)\b", re.IGNORECASE),
     re.compile(r"\bsystem\s+prompt\b", re.IGNORECASE),
     re.compile(r"\byou\s+must\s+(?:now\s+)?(?:run|execute|approve|ignore|override)\b", re.IGNORECASE),
     re.compile(r"\brun\s+(?:command|shell|script|terminal)\b", re.IGNORECASE),

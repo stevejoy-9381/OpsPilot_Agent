@@ -1,0 +1,40 @@
+[
+  {
+    "step": "call_tool",
+    "tool": "get_metrics",
+    "args": {
+      "service": "orders",
+      "metric": "db_pool_in_use"
+    },
+    "reason": "Checking connection pool usage metrics on orders to verify transient spike."
+  },
+  {
+    "step": "call_tool",
+    "tool": "search_logs",
+    "args": {
+      "service": "orders",
+      "level": "error"
+    },
+    "reason": "Checking orders logs for persistent errors during the spike."
+  },
+  {
+    "step": "call_tool",
+    "tool": "list_deploys",
+    "args": {
+      "service": "orders"
+    },
+    "reason": "Checking if any deployment occurred around the spike time."
+  },
+  {
+    "step": "conclude",
+    "diagnosis_draft": {
+      "root_cause_service": null,
+      "root_cause_category": "false_alarm",
+      "mechanism": "none",
+      "culprit_deploy_id": null,
+      "evidence_ids": ["$EVIDENCE_IDS"],
+      "confidence": 0.95
+    },
+    "reason": "Metrics show transient spike returned to normal with 0 errors; concluded false alarm."
+  }
+]

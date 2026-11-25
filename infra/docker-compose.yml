@@ -7,6 +7,8 @@ name: opspilot
 # See infra/README.md for the trust-boundary rationale.
 networks:
   core:
+  evidence:
+    internal: true
   lab:
     internal: true
   broker:
@@ -54,6 +56,25 @@ services:
       timeout: 3s
       retries: 10
       start_period: 5s
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.worker
+    restart: unless-stopped
+    profiles:
+      - core
+      - worker
+    mem_limit: 512m
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-opspilot}:${POSTGRES_PASSWORD:-change-me-local-only}@postgres:5432/${POSTGRES_DB:-opspilot}
+      REDIS_URL: redis://redis:6379/0
+      OPSPILOT_SERVICE_TOKEN: ${OPSPILOT_SERVICE_TOKEN:-service-principal-token-test}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-1}
+      RUN_TIMEOUT_SECONDS: ${RUN_TIMEOUT_SECONDS:-120}
+    networks:
+      - core
+      - evidence
 
 # Deliberate: no service in this file mounts the host Docker control socket.
 volumes:

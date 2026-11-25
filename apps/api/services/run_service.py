@@ -28,7 +28,7 @@ from apps.api.domain.errors import (
     ConcurrentModificationError,
     IllegalTransitionError,
 )
-from apps.api.models.tables import RunEventModel, RunModel
+from apps.api.models.tables import DiagnosisModel, RunEventModel, RunModel
 from apps.api.repositories.run_repository import RunRepository
 
 logger = logging.getLogger(__name__)
@@ -201,6 +201,53 @@ class RunService:
         )
 
         return self.run_repo.get_by_id(ctx, run_id)
+
+    def append_event(
+        self,
+        ctx: TenantContext,
+        run_id: UUID,
+        event_type: str,
+        actor: str,
+        payload: dict[str, Any] | None = None,
+    ) -> RunEventModel:
+        """Appends an event to the run's audit log with a gap-free monotonic sequence."""
+        return self.run_repo.append_event(
+            ctx=ctx,
+            run_id=run_id,
+            event_type=event_type,
+            actor=actor,
+            payload=payload,
+        )
+
+    def save_diagnosis(
+        self,
+        ctx: TenantContext,
+        run_id: UUID,
+        diagnosis_data: dict[str, Any],
+        status: str = "draft",
+    ) -> DiagnosisModel:
+        """Persists or updates a diagnosis record and records an audit event."""
+        diag = self.run_repo.save_diagnosis(
+            ctx=ctx,
+            run_id=run_id,
+            diagnosis_data=diagnosis_data,
+            status=status,
+        )
+        self.run_repo.append_event(
+            ctx=ctx,
+            run_id=run_id,
+            event_type="diagnosis_persisted",
+            actor="investigator",
+            payload={
+                "diagnosis_id": str(diag.id),
+                "status": status,
+                "root_cause_category": diag.root_cause_category,
+                "root_cause_service": diag.root_cause_service,
+                "mechanism": diag.mechanism,
+                "evidence_ids": diag.evidence_ids,
+            },
+        )
+        return diag
 
     def decrement_calls(
         self,

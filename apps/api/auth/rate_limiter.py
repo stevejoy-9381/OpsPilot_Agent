@@ -10,6 +10,7 @@ import os
 import time
 from collections import defaultdict
 from threading import Lock
+from typing import Any
 
 import redis
 
@@ -31,7 +32,7 @@ class RateLimiter:
     ) -> None:
         self.max_attempts = max_attempts
         self.window_seconds = window_seconds
-        self._redis_client: redis.Redis | None = None
+        self._redis_client: redis.Redis[Any] | None = None
         self._use_redis = False
         self._lock = Lock()
         self._memory_store: dict[str, list[float]] = defaultdict(list)

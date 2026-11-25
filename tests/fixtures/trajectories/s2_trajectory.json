@@ -1,0 +1,50 @@
+[
+  {
+    "step": "call_tool",
+    "tool": "get_metrics",
+    "args": {
+      "service": "inventory",
+      "metric": "latency_p95"
+    },
+    "reason": "Querying 95th percentile latency on inventory service."
+  },
+  {
+    "step": "call_tool",
+    "tool": "get_trace",
+    "args": {
+      "service": "inventory",
+      "errors_only": false
+    },
+    "reason": "Inspecting slow traces on inventory service to locate bottlenecks."
+  },
+  {
+    "step": "call_tool",
+    "tool": "list_deploys",
+    "args": {
+      "service": "inventory"
+    },
+    "reason": "Checking recent deployment history on inventory service."
+  },
+  {
+    "step": "call_tool",
+    "tool": "get_deploy_diff",
+    "args": {
+      "service": "inventory",
+      "old_version": "v1.0.0",
+      "new_version": "v1.2.0"
+    },
+    "reason": "Inspecting deploy diff for inventory v1.2.0 to verify cache bypass."
+  },
+  {
+    "step": "conclude",
+    "diagnosis_draft": {
+      "root_cause_service": "inventory",
+      "root_cause_category": "bad_deploy",
+      "mechanism": "cache_bypass_latency",
+      "culprit_deploy_id": "deploy_inventory_v120",
+      "evidence_ids": ["$EVIDENCE_IDS"],
+      "confidence": 0.92
+    },
+    "reason": "Confirmed cache bypass latency regression in deploy_inventory_v120."
+  }
+]

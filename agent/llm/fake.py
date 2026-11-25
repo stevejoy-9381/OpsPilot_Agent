@@ -1,3 +1,4 @@
+import json
 import time
 from typing import Any, Sequence, TypeVar
 
@@ -98,63 +99,48 @@ class FakeLLMClient(LLMClient):
 
         latency_ms = (time.perf_counter() - start) * 1000.0
 
-        if isinstance(resp, response_schema):
+        from pydantic import TypeAdapter
+        adapter: TypeAdapter[Any] = TypeAdapter(response_schema)
+        try:
+            if isinstance(resp, str):
+                parsed = adapter.validate_json(resp)
+                raw_text = resp
+            else:
+                parsed = adapter.validate_python(resp)
+                raw_text = parsed.model_dump_json() if hasattr(parsed, "model_dump_json") else json.dumps(resp)
             return StructuredResult[T](
-                parsed=resp,
-                raw_text=resp.model_dump_json(),
+                parsed=parsed,
+                raw_text=raw_text,
                 token_usage=usage,
                 latency_ms=latency_ms,
                 model=self.model_name,
                 provider_request_id="fake-req-id",
             )
-        elif isinstance(resp, dict):
-            try:
-                parsed = response_schema.model_validate(resp)
-                return StructuredResult[T](
-                    parsed=parsed,
-                    raw_text=parsed.model_dump_json(),
-                    token_usage=usage,
-                    latency_ms=latency_ms,
-                    model=self.model_name,
-                    provider_request_id="fake-req-id",
-                )
-            except ValidationError as val_err:
-                return StructuredResult[T](
-                    raw_text=str(resp),
-                    token_usage=usage,
-                    latency_ms=latency_ms,
-                    model=self.model_name,
-                    provider_request_id="fake-req-id",
-                    error=LLMError(
-                        error_type="schema_validation_failed",
-                        message=str(val_err),
-                        details={"errors": val_err.errors()},
-                    ),
-                )
-        elif isinstance(resp, str):
-            try:
-                parsed = response_schema.model_validate_json(resp)
-                return StructuredResult[T](
-                    parsed=parsed,
-                    raw_text=resp,
-                    token_usage=usage,
-                    latency_ms=latency_ms,
-                    model=self.model_name,
-                    provider_request_id="fake-req-id",
-                )
-            except ValidationError as val_err:
-                return StructuredResult[T](
-                    raw_text=resp,
-                    token_usage=usage,
-                    latency_ms=latency_ms,
-                    model=self.model_name,
-                    provider_request_id="fake-req-id",
-                    error=LLMError(
-                        error_type="schema_validation_failed",
-                        message=str(val_err),
-                        details={"errors": val_err.errors()},
-                    ),
-                )
+        except ValidationError as val_err:
+            return StructuredResult[T](
+                raw_text=str(resp),
+                token_usage=usage,
+                latency_ms=latency_ms,
+                model=self.model_name,
+                provider_request_id="fake-req-id",
+                error=LLMError(
+                    error_type="schema_validation_failed",
+                    message=str(val_err),
+                    details={"errors": val_err.errors()},
+                ),
+            )
+        except Exception as exc:
+            return StructuredResult[T](
+                raw_text=str(resp),
+                token_usage=usage,
+                latency_ms=latency_ms,
+                model=self.model_name,
+                provider_request_id="fake-req-id",
+                error=LLMError(
+                    error_type="schema_validation_failed",
+                    message=str(exc),
+                ),
+            )
 
         raise TypeError(f"Unsupported scripted response type: {type(resp)}")
 

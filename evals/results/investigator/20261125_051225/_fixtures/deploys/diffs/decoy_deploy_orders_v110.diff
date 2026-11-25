@@ -1,0 +1,5 @@
+--- a/orders/log.py
++++ b/orders/log.py
+@@ -5,1 +5,1 @@
+-# orders v1.0 logger
++# orders v1.1 logger refactored

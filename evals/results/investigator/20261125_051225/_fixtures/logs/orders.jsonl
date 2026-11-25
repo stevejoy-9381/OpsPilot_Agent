@@ -1,0 +1,2 @@
+{"timestamp": "2026-11-24T11:55:00+00:00", "level": "INFO", "message": "Order #5001 completed successfully", "attributes": {"event": "order_completed", "version": "v1.3.0"}}
+{"timestamp": "2026-11-24T11:58:00+00:00", "level": "ERROR", "message": "DB connection pool exhausted after 30.0s for checkout transaction", "attributes": {"event": "db_pool_timeout", "trace_id": "tr_s1_pool", "version": "v1.3.0"}}
