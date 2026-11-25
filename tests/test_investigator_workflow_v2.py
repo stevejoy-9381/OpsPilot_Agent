@@ -277,7 +277,7 @@ def test_normal_3_step_trajectory(sample_alert: AlertEvent) -> None:
     final_state = run_investigation_graph(graph, initial_state)
 
     # Verifications
-    assert final_state["status"] == "escalated"  # finalized through handoff port
+    assert final_state["status"] == "completed"  # false_alarm finalized with no_action
     assert final_state["step_count"] == 3
     assert final_state["ledger_update_count"] == 1
     assert "ev_metric_01" in final_state["evidence_ids"]
@@ -742,7 +742,7 @@ def test_interleaved_events_table(sample_alert: AlertEvent) -> None:
     )
 
     final_state = run_investigation_graph(graph, initial_state)
-    assert final_state["status"] == "escalated"
+    assert final_state["status"] == "completed"
 
     # Print markdown table for acceptance paste
     print("\n\n=== SCRIPTED RUN INTERLEAVED EVENTS TABLE ===")

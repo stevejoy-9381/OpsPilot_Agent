@@ -36,7 +36,9 @@ Modern cloud-native systems face complex production incidents where critical dia
 |   |   LangGraph Investigator Core |                               |           |
 |   |   [load_context -> plan_step  |                               |           |
 |   |    -> call_tool -> record     |                               |           |
-|   |    -> conclude -> finalize]   |                               |           |
+|   |    -> update_ledger           |                               |           |
+|   |    -> conclude (Gate & Caps)  |                               |           |
+|   |    -> finalize -> handoff]    |                               |           |
 |   +-------+-----------------------+                               |           |
 |           |                       |                               |           |
 |           v                       v                               |           |
@@ -187,6 +189,7 @@ The baseline ladder measures non-agent performance across three benchmark rungs 
 | `make db-seed` | `uv run python scripts/seed_dev.py` | Seed deterministic tenants, users, and credentials |
 | `make test-backbone` | `uv run pytest tests/backbone/test_lifecycle.py -v` | Run scripted lifecycle driver, negative paths, and 200-run load check |
 | `make test-agent` | `uv run pytest tests/test_agent_*.py tests/test_worker_*.py ...` | Run offline investigator agent and worker integration tests |
+| `make test-hypothesis` | `uv run pytest tests/test_hypothesis_ledger.py ...` | Run offline Feature 6 ledger, gate, outcome, and scripted-trajectory tests |
 | `make worker` | `uv run python -m agent.worker` | Run background investigator worker daemon |
 | `make run-offline-demo` | `uv run python scripts/demo_offline_investigator.py` | Run deterministic end-to-end offline investigation demo |
 | `make web-install`| `cd apps/web && npm install` | Install React frontend packages |
@@ -259,6 +262,12 @@ The baseline ladder measures non-agent performance across three benchmark rungs 
   - Background worker daemon ([agent/worker.py](agent/worker.py)) claiming queued runs via `SELECT ... FOR UPDATE SKIP LOCKED` with heartbeats and timeout watchdogs
   - End-to-end evaluation runner ([evals/investigator_runner.py](evals/investigator_runner.py)) and comprehensive evaluation report ([docs/INVESTIGATOR_REPORT.md](docs/INVESTIGATOR_REPORT.md))
   - 64-case offline agent test suite ([tests/test_investigator_loop_deterministic.py](tests/test_investigator_loop_deterministic.py), [tests/test_worker_and_graph.py](tests/test_worker_and_graph.py))
-- [ ] **Feature 6: Hypothesis Tracking & Contrary Evidence Formulation** (Dual-hypothesis generation, disconfirming telemetry checks, candidate v2 prompt)
+- [x] **Feature 6: Hypothesis Tracking & Contrary Evidence Formulation Complete**
+  - Pure immutable Hypothesis Ledger ([agent/graph/ledger.py](agent/graph/ledger.py)) with `MAX_HYPOTHESES_PER_RUN = 4`, transition invariants, and deterministic evidence-count ranking
+  - Step Schema v2 (`CallToolStepV2`, `UpdateHypothesesStepV2`, `ConcludeStepV2`, `FlatAgentStepV2`) and `StepValidator` ([agent/graph/steps.py](agent/graph/steps.py))
+  - Deterministic Contrary-Evidence Gate, typed outcome resolver, and YAML confidence cap table ([agent/graph/gate.py](agent/graph/gate.py), [agent/graph/confidence_caps.yaml](agent/graph/confidence_caps.yaml))
+  - Versioned prompt v2 ([agent/prompts/investigator_system_v2.md](agent/prompts/investigator_system_v2.md), hash `ade9f1e5...`) with zero-leakage and changelog governance
+  - Finalize v2 persistence with `false_alarm` -> `completed` (`no_action`) handling, ledger summary, and OpenAPI schema updates
+  - Comprehensive Feature 6 report ([docs/HYPOTHESIS_REPORT.md](docs/HYPOTHESIS_REPORT.md)) and live v1 vs v2 evaluation report ([docs/investigator_report_v2.md](docs/investigator_report_v2.md))
 - [ ] **Feature 7: Action Proposals, Remediation Planning & Approval Gates** (Action vocabulary planning, cryptographic plan hashes, human approval gate)
 - [ ] **Feature 8: Durable Resume, Checkpointing & Recovery Engine** (LangGraph PostgreSQL checkpoint persistence, pause-and-resume workflows)

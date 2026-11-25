@@ -180,19 +180,32 @@ def finalize_node(
             evidence_lookup[item.evidence_id] = item
         elif isinstance(item, ObservationModel):
             src = str(getattr(item, "source_id", None) or getattr(item, "tool", "telemetry"))
+            src = src.split(":")[0] if ":" in src else src
+            ts = getattr(item, "window_end", None) or item.captured_at
             evidence_lookup[item.evidence_id] = EvidenceItem(
                 evidence_id=item.evidence_id,
-                timestamp=item.captured_at,
+                timestamp=ts,
                 source=src,
             )
         elif isinstance(item, dict):
-            ts = item.get("captured_at") or item.get("timestamp")
+            ts = item.get("window_end") or item.get("captured_at") or item.get("timestamp")
             if isinstance(ts, str):
                 ts = datetime.fromisoformat(ts)
+            raw_src = str(item.get("tool") or item.get("source_id") or item.get("source", "telemetry"))
+            src = raw_src.split(":")[0] if ":" in raw_src else raw_src
             evidence_lookup[item["evidence_id"]] = EvidenceItem(
                 evidence_id=item["evidence_id"],
                 timestamp=ts or datetime.now(),
-                source=item.get("tool") or item.get("source", "telemetry"),
+                source=src,
+            )
+        elif hasattr(item, "evidence_id"):
+            raw_src = str(getattr(item, "source_id", None) or getattr(item, "tool", "telemetry"))
+            src = raw_src.split(":")[0] if ":" in raw_src else raw_src
+            ts = getattr(item, "window_end", None) or getattr(item, "captured_at", None)
+            evidence_lookup[item.evidence_id] = EvidenceItem(
+                evidence_id=item.evidence_id,
+                timestamp=ts or datetime.now(),
+                source=src,
             )
 
     # 2. Extract and parse current diagnosis draft

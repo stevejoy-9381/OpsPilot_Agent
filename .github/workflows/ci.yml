@@ -96,6 +96,12 @@ jobs:
           REDIS_URL: redis://127.0.0.1:6379/0
         run: uv run pytest tests/test_agent_context.py tests/test_graph_state_and_steps.py tests/test_plan_step.py tests/test_conclude_and_finalize.py tests/test_investigator_loop_deterministic.py tests/test_worker_and_graph.py -v -m "not live"
 
+      - name: Run Feature 6 hypothesis, gate, and scripted-trajectory tests (offline)
+        env:
+          DATABASE_URL: postgresql+psycopg://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: uv run pytest tests/test_hypothesis_ledger.py tests/test_step_schema_v2.py tests/test_gate_and_outcomes.py tests/test_investigator_workflow_v2.py tests/test_finalize_v2_and_api.py tests/test_v2_loop_deterministic.py -v -m "not live"
+
       - name: Run offline investigator demo
         run: uv run python scripts/demo_offline_investigator.py
 

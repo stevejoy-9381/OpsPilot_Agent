@@ -87,17 +87,16 @@ Deferred ideas, future enhancements, and follow-ups identified during architectu
 
 ## Roadmap Alignment & Upcoming Milestones
 
-### Feature 6: Hypothesis Tracking & Contrary Evidence Formulation
-- **Explicit Dual-Hypothesis Tracking**: Model formulates `primary_hypothesis` and competing alternative on every turn.
-- **Contrary Evidence Search**: Require at least one query intended to refute or disconfirm the leading hypothesis before attributing causality (addressing decoy deploy scenarios like S4).
-- **Candidate v2 Prompt Transition**: Formal migration from `investigator_system_v1.md` to `investigator_system_v2.md` following version governance and cryptographic hash verification.
-- **Quota-Aware Query Planning**: Heuristic and prompt guidance to batch high-information queries (`list_deploys` + `search_logs`) in initial turns to preserve API quota.
+### Feature 6: Hypothesis Tracking & Contrary Evidence Formulation *(Completed)*
+- **Explicit Hypothesis Ledger & Contrary-Evidence Gate**: Implemented in `agent/graph/ledger.py`, `agent/graph/steps.py`, and `agent/graph/gate.py` with `confidence_caps.yaml` and `investigator_system_v2.md`.
+- **Follow-ups**: Live Gemini `response_schema` compatibility (`additionalProperties` stripping) and `max_output_tokens` headroom recorded as Candidate v3 in `docs/prompt_changelog.md`.
 
 ### Feature 7: Action Proposals, Remediation Planning & Approval Gates
-- **Remediation Plan Synthesis**: Translate confirmed diagnosis into structured action plans using the closed vocabulary in `shared/actions.py` (`rollback_service`, `restart_service`, `no_action`, `escalate`).
+- **Remediation Plan Synthesis**: Translate confirmed `diagnosed` outcomes (received via `HandoffPort.propose`) into structured action plans using the closed vocabulary in `shared/actions.py` (`rollback_service`, `restart_service`, `no_action`, `escalate`).
 - **Cryptographic Plan Hashing**: Enforce SHA-256 plan hash computation matching `app.action_plans.plan_hash` database invariant triggers.
 - **Human-in-the-Loop Approval Gate**: Status transition `needs_review -> awaiting_approval` preventing execution until explicit cryptographic human sign-off.
 - **Review UI Action Timeline**: Interactive plan diffing, risk assessment badges, and approval/rejection action bar.
+- **Stretch — Multi-Cause Resolution & Sequencing**: Currently two or more concurrent supported causes escalate (`multiple_concurrent_causes`); future work may sequence multi-service remediation plans once single-fault verification is proven.
 
 ### Feature 8: Durable Resume, Checkpointing & Recovery Engine
 - **PostgreSQL Checkpointer Integration**: Wire LangGraph `PostgresSaver` into the `checkpoints` schema with connection pooling and RLS.

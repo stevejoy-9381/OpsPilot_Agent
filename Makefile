@@ -1,4 +1,4 @@
-.PHONY: install lint typecheck test migrate run-api up down reset db-up db-migrate db-reset db-seed test-backbone web-install web-dev web-test web-lint lab-up lab-down lab-smoke lab-lean codespace-setup worker run-offline-demo test-agent
+.PHONY: install lint typecheck test migrate run-api up down reset db-up db-migrate db-reset db-seed test-backbone web-install web-dev web-test web-lint lab-up lab-down lab-smoke lab-lean codespace-setup worker run-offline-demo test-agent test-hypothesis
 
 install:
 	uv sync --extra dev
@@ -85,6 +85,9 @@ run-offline-demo:
 
 test-agent:
 	uv run pytest tests/test_agent_context.py tests/test_graph_state_and_steps.py tests/test_plan_step.py tests/test_conclude_and_finalize.py tests/test_investigator_loop_deterministic.py tests/test_worker_and_graph.py -v -m "not live"
+
+test-hypothesis:
+	uv run pytest tests/test_hypothesis_ledger.py tests/test_step_schema_v2.py tests/test_gate_and_outcomes.py tests/test_investigator_workflow_v2.py tests/test_finalize_v2_and_api.py tests/test_v2_loop_deterministic.py -v -m "not live"
 
 codespace-setup: install web-install
 
