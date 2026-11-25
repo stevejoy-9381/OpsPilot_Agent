@@ -30,17 +30,22 @@ Modern cloud-native systems face complex production incidents where critical dia
 |   |   (Port 5432) |                                       |  (Port 6379)  |   |
 |   +---------------+                                       +---------------+   |
 |           ^                                                       ^           |
-|           | Checkpoints & State                                   | Cache     |
-|   +-------+-------+                                               |           |
-|   |   LangGraph   |                                               |           |
-|   |  Agent Core   |                                               |           |
-|   +-------+-------+                                               |           |
-|           |                                                       |           |
-|           v                                                       |           |
-|   +---------------+                                               |           |
-|   |  LLM Adapter  | (GeminiClient / FakeLLMClient)                |           |
-|   |  (agent/llm)  | Isolated provider SDK boundary                |           |
-|   +---------------+                                               |           |
+|           | Checkpoints & State (FOR UPDATE SKIP LOCKED)          | Cache     |
+|   +-------+-----------------------+                               |           |
+|   | Worker Daemon (agent/worker)  |                               |           |
+|   |   LangGraph Investigator Core |                               |           |
+|   |   [load_context -> plan_step  |                               |           |
+|   |    -> call_tool -> record     |                               |           |
+|   |    -> conclude -> finalize]   |                               |           |
+|   +-------+-----------------------+                               |           |
+|           |                       |                               |           |
+|           v                       v                               |           |
+|   +---------------+       +---------------+                       |           |
+|   |  LLM Adapter  |       | Tool Registry |                       |           |
+|   |  (agent/llm)  |       | (tools/ - F2) |                       |           |
+|   | GeminiClient/ |       | Read-only     |                       |           |
+|   | FakeLLMClient |       | bounded tools |                       |           |
+|   +---------------+       +---------------+                       |           |
 |                                                                               |
 +-------------------------------------------------------------------------------+
                                         | (Proposals via Database/API)
@@ -181,6 +186,9 @@ The baseline ladder measures non-agent performance across three benchmark rungs 
 | `make db-reset` | Drop schema + Alembic head | Cleanly reset schema and apply all migrations to head |
 | `make db-seed` | `uv run python scripts/seed_dev.py` | Seed deterministic tenants, users, and credentials |
 | `make test-backbone` | `uv run pytest tests/backbone/test_lifecycle.py -v` | Run scripted lifecycle driver, negative paths, and 200-run load check |
+| `make test-agent` | `uv run pytest tests/test_agent_*.py tests/test_worker_*.py ...` | Run offline investigator agent and worker integration tests |
+| `make worker` | `uv run python -m agent.worker` | Run background investigator worker daemon |
+| `make run-offline-demo` | `uv run python scripts/demo_offline_investigator.py` | Run deterministic end-to-end offline investigation demo |
 | `make web-install`| `cd apps/web && npm install` | Install React frontend packages |
 | `make web-lint` | `cd apps/web && npm run lint` | Run ESLint on frontend code |
 | `make web-test` | `cd apps/web && npm test` | Run Vitest unit tests |
@@ -242,5 +250,15 @@ The baseline ladder measures non-agent performance across three benchmark rungs 
   - Production-grade `PostgresEvidenceStore` with 64 KB inline caps and artifact file references
   - Scripted lifecycle backbone driver (`tests/backbone/test_lifecycle.py`), 200 concurrent runs load test, and database integrity script (`scripts/db_invariants.py`)
   - Full data model, security, and invariant report ([docs/DATA_MODEL_REPORT.md](docs/DATA_MODEL_REPORT.md))
-- [ ] **Feature 5: Review UI & Interactive Investigation Dashboard** (Review screen, live SSE timelines, human approval gate)
-- [ ] **Feature 6: Agent Graph & Diagnostic Core** (LangGraph state engine, hypothesis formulation, tool dispatch)
+- [x] **Feature 5: Autonomous Incident Investigator Agent & Evaluation Substrate Complete**
+  - Compiled LangGraph investigator graph (`load_context -> plan_step -> (call_tool -> record -> plan_step)* -> conclude -> finalize -> handoff`)
+  - Typed `InvestigationState` with immutable references, summaries, audit traces, and budget counters
+  - Discriminated union step schemas (`CallToolStep` with allowlisted read tools, `ConcludeStep` with Feature 1.12 `Diagnosis` artifact)
+  - Zero-leakage context assembler ([agent/graph/context.py](agent/graph/context.py)) with progressive compaction and protected evidence preservation
+  - Deterministic prompt version governance ([agent/prompts/investigator_system_v1.md](agent/prompts/investigator_system_v1.md), hash `7c065736...`)
+  - Background worker daemon ([agent/worker.py](agent/worker.py)) claiming queued runs via `SELECT ... FOR UPDATE SKIP LOCKED` with heartbeats and timeout watchdogs
+  - End-to-end evaluation runner ([evals/investigator_runner.py](evals/investigator_runner.py)) and comprehensive evaluation report ([docs/INVESTIGATOR_REPORT.md](docs/INVESTIGATOR_REPORT.md))
+  - 64-case offline agent test suite ([tests/test_investigator_loop_deterministic.py](tests/test_investigator_loop_deterministic.py), [tests/test_worker_and_graph.py](tests/test_worker_and_graph.py))
+- [ ] **Feature 6: Hypothesis Tracking & Contrary Evidence Formulation** (Dual-hypothesis generation, disconfirming telemetry checks, candidate v2 prompt)
+- [ ] **Feature 7: Action Proposals, Remediation Planning & Approval Gates** (Action vocabulary planning, cryptographic plan hashes, human approval gate)
+- [ ] **Feature 8: Durable Resume, Checkpointing & Recovery Engine** (LangGraph PostgreSQL checkpoint persistence, pause-and-resume workflows)

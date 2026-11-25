@@ -232,7 +232,10 @@ class GeminiClient(LLMClient):
                     error=LLMError(
                         error_type="schema_validation_failed",
                         message=f"Schema validation failed: {val_err}",
-                        details={"errors": val_err.errors(), "raw_text": raw_text},
+                        details={
+                            "errors": val_err.errors() if isinstance(val_err, ValidationError) else str(val_err),
+                            "raw_text": raw_text,
+                        },
                     ),
                 )
 

@@ -85,11 +85,22 @@ Deferred ideas, future enhancements, and follow-ups identified during architectu
 
 ---
 
-## Agent & Review UI (Features 4+ Planning)
+## Roadmap Alignment & Upcoming Milestones
 
-1. **LangGraph Tool Budgeting Engine**:
-   - Enforce hard limits on tool invocations (max Prometheus range queries, max trace lookups) per diagnosis step to prevent token explosion.
-2. **Interactive Plan Diff Review**:
-   - Visual side-by-side diffing of proposed service rollback or remediation actions inside the React UI before human cryptographic sign-off.
-3. **Escalation Notification Webhooks**:
-   - Webhook integration (Slack / PagerDuty / Email) when the agent identifies an unresolvable incident or halts due to safety boundary constraints.
+### Feature 6: Hypothesis Tracking & Contrary Evidence Formulation
+- **Explicit Dual-Hypothesis Tracking**: Model formulates `primary_hypothesis` and competing alternative on every turn.
+- **Contrary Evidence Search**: Require at least one query intended to refute or disconfirm the leading hypothesis before attributing causality (addressing decoy deploy scenarios like S4).
+- **Candidate v2 Prompt Transition**: Formal migration from `investigator_system_v1.md` to `investigator_system_v2.md` following version governance and cryptographic hash verification.
+- **Quota-Aware Query Planning**: Heuristic and prompt guidance to batch high-information queries (`list_deploys` + `search_logs`) in initial turns to preserve API quota.
+
+### Feature 7: Action Proposals, Remediation Planning & Approval Gates
+- **Remediation Plan Synthesis**: Translate confirmed diagnosis into structured action plans using the closed vocabulary in `shared/actions.py` (`rollback_service`, `restart_service`, `no_action`, `escalate`).
+- **Cryptographic Plan Hashing**: Enforce SHA-256 plan hash computation matching `app.action_plans.plan_hash` database invariant triggers.
+- **Human-in-the-Loop Approval Gate**: Status transition `needs_review -> awaiting_approval` preventing execution until explicit cryptographic human sign-off.
+- **Review UI Action Timeline**: Interactive plan diffing, risk assessment badges, and approval/rejection action bar.
+
+### Feature 8: Durable Resume, Checkpointing & Recovery Engine
+- **PostgreSQL Checkpointer Integration**: Wire LangGraph `PostgresSaver` into the `checkpoints` schema with connection pooling and RLS.
+- **Durable Pause-and-Resume**: Seamlessly freeze state during human approval or provider backoff and resume execution on worker restart without re-running earlier steps.
+- **Distributed Trace Visualizer**: Add waterfall timeline charts in React UI for visual root cause validation.
+- **Escalation Notification Webhooks**: Dispatch Slack/PagerDuty webhooks upon `provider_error_exhausted`, `budget_exhausted`, or manual human escalation.

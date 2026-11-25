@@ -7,8 +7,6 @@ Saves raw trajectories and summary under evals/results/investigator/<timestamp>/
 
 from __future__ import annotations
 
-import argparse
-import asyncio
 import json
 import logging
 import os
@@ -17,7 +15,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from dotenv import load_dotenv
 from langgraph.checkpoint.memory import MemorySaver
@@ -28,7 +26,6 @@ from agent.graph.graph import build_investigator_graph, run_investigation_graph
 from agent.graph.handoff import DefaultHandoffStub
 from agent.graph.state import create_initial_state
 from agent.llm.gemini import GeminiClient
-from agent.llm.interface import TokenBudgetGuard
 from apps.api.domain.context import TenantContext
 from baseline.alerts.models import AlertEvent
 from baseline.b2_llm_no_tools import calculate_cost, load_pricing_config
@@ -43,7 +40,7 @@ from tests.test_investigator_loop_deterministic import (
     build_test_snapshot_environment,
 )
 from tools.read.backends.snapshot import SnapshotBackend
-from tools.registry import ToolRegistry, _CALL_CACHE
+from tools.registry import _CALL_CACHE, ToolRegistry
 
 load_dotenv()
 logger = logging.getLogger("opspilot.evals.investigator_runner")
@@ -306,9 +303,9 @@ def main() -> None:
         return
 
     model_name = os.getenv("GEMINI_MODEL", "gemini-3.5-flash").strip()
-    print(f"=== OPSPILOT INVESTIGATOR EVALUATION ===")
+    print("=== OPSPILOT INVESTIGATOR EVALUATION ===")
     print(f"Model: {model_name}")
-    print(f"Backend: SnapshotBackend (isolated snapshot telemetry fixtures)")
+    print("Backend: SnapshotBackend (isolated snapshot telemetry fixtures)")
 
     # 1. Prompt and hash
     sys_prompt = load_system_prompt()
