@@ -689,5 +689,5 @@ def test_live_e2e_orders_rollback_and_deploys_row(monkeypatch: pytest.MonkeyPatc
             assert deploy_row[3] == "v1.0.0" or deploy_row[4] == "v1.0.0"
             print(f"\n--- LIVE lab.deploys ROW ---\n{deploy_row}")
 
-    assert check_invariants(live=True) == 0
+    assert check_invariants() == 0
     engine.dispose()
