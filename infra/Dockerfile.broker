@@ -23,10 +23,10 @@ COPY apps/api/__init__.py apps/api/__init__.py
 COPY apps/api/logging.py apps/api/logging.py
 COPY apps/api/domain/ apps/api/domain/
 COPY apps/api/models/ apps/api/models/
+COPY apps/api/repositories/__init__.py apps/api/repositories/__init__.py
 COPY apps/api/repositories/base.py apps/api/repositories/base.py
 COPY apps/api/repositories/run_repository.py apps/api/repositories/run_repository.py
 COPY apps/api/repositories/execution_repository.py apps/api/repositories/execution_repository.py
-RUN printf '"""OpsPilot Repositories package (broker subset)."""\n' > apps/api/repositories/__init__.py
 COPY apps/api/services/run_service.py apps/api/services/run_service.py
 COPY apps/api/services/__init__.py apps/api/services/__init__.py
 COPY broker/ broker/

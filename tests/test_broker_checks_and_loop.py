@@ -194,38 +194,117 @@ def test_broker_settings_fail_fast(monkeypatch: pytest.MonkeyPatch):
     assert s.lab_admin_token.get_secret_value() == "secret-tok"
 
 
-def test_broker_import_graph_and_pyproject_extra():
-    """Broker imports nothing from agent/, tools/, apps/api/routers, or LLM SDKs."""
-    forbidden_prefixes = (
-        "agent",
-        "tools",
-        "apps.api.routers",
-        "google",
-        "langgraph",
-        "openai",
-        "anthropic",
-    )
-    broker_files = list(Path("broker").rglob("*.py"))
-    assert broker_files, "No broker python files found"
+_FORBIDDEN_PREFIXES = (
+    "agent",
+    "tools.read",
+    "tools",
+    "apps.api.routers",
+    "google",
+    "langgraph",
+    "openai",
+    "anthropic",
+)
 
-    for path in broker_files:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
+
+def _resolve_local_module(module_name: str) -> Path | None:
+    """Resolves a local Python module name to its source file if it exists in the repo."""
+    parts = module_name.split(".")
+    cand_file = Path(*parts).with_suffix(".py")
+    if cand_file.is_file():
+        return cand_file
+    cand_init = Path(*parts, "__init__.py")
+    if cand_init.is_file():
+        return cand_init
+    return None
+
+
+def _extract_imports(source: str, filename: str, current_module: str) -> list[str]:
+    tree = ast.parse(source, filename=filename)
+    imports: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level > 0:
+                pkg_parts = current_module.split(".")[: -node.level]
+                base = ".".join(pkg_parts)
+                mod = f"{base}.{node.module}" if (base and node.module) else (node.module or base)
+            else:
+                mod = node.module or ""
+            if mod:
+                imports.append(mod)
                 for alias in node.names:
-                    assert not alias.name.startswith(forbidden_prefixes), (
-                        f"Forbidden import '{alias.name}' in {path}"
-                    )
-            elif isinstance(node, ast.ImportFrom) and node.module:
-                assert not node.module.startswith(forbidden_prefixes), (
-                    f"Forbidden import-from '{node.module}' in {path}"
-                )
+                    if alias.name != "*":
+                        imports.append(f"{mod}.{alias.name}")
+    return imports
+
+
+def _find_transitive_forbidden_imports(
+    entry_modules: list[str],
+    *,
+    overrides: dict[str, str] | None = None,
+) -> list[tuple[str, str]]:
+    """Walks all reachable imports from entry_modules and returns [(from_mod, forbidden_mod)]."""
+    visited: set[str] = set()
+    queue = list(entry_modules)
+    violations: list[tuple[str, str]] = []
+
+    while queue:
+        mod = queue.pop(0)
+        if mod in visited:
+            continue
+        visited.add(mod)
+
+        if overrides and mod in overrides:
+            src = overrides[mod]
+            filename = f"<override:{mod}>"
+        else:
+            path = _resolve_local_module(mod)
+            if path is None:
+                continue
+            src = path.read_text(encoding="utf-8")
+            filename = str(path)
+
+        for imp in _extract_imports(src, filename, mod):
+            if imp.startswith(_FORBIDDEN_PREFIXES):
+                violations.append((mod, imp))
+            elif imp not in visited and (
+                (overrides and imp in overrides) or _resolve_local_module(imp) is not None
+            ):
+                queue.append(imp)
+
+    return violations
+
+
+def test_broker_import_graph_and_pyproject_extra():
+    """Broker transitively imports nothing from agent/, tools/, apps/api/routers, or LLM SDKs."""
+    entry_mods = [
+        ".".join(p.with_suffix("").parts)
+        for p in Path("broker").rglob("*.py")
+        if p.name != "__init__.py"
+    ]
+    assert "broker.main" in entry_mods
+    violations = _find_transitive_forbidden_imports(entry_mods)
+    assert violations == [], f"Transitive forbidden imports found: {violations}"
 
     pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     broker_deps = pyproject["project"]["optional-dependencies"]["broker"]
     joined = " ".join(broker_deps).lower()
     for forbidden_pkg in ("langgraph", "google-genai", "redis", "opentelemetry", "argon2"):
         assert forbidden_pkg not in joined, f"Unexpected pkg '{forbidden_pkg}' in broker extra"
+
+
+def test_transitive_import_graph_catches_bad_import():
+    """Negative test: transitive import checker fails when a bad import is injected."""
+    violations = _find_transitive_forbidden_imports(
+        ["broker.main"],
+        overrides={"broker.checks": "from agent.llm.interface import LLMClient\n"},
+    )
+    assert any(
+        src == "broker.checks" and dst.startswith("agent.llm")
+        for src, dst in violations
+    ), f"Expected transitive checker to catch injected bad import, got: {violations}"
 
 
 def _drain_active_executions(cur: psycopg.Cursor) -> None:
