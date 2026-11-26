@@ -261,8 +261,8 @@ def _run_graph_through_await_execution(
         "proposed_plan_hash": plan_hash_val,
         "status": "needs_review",
     }
-    first = graph.invoke(initial, config=cfg)
-    assert "__interrupt__" in first
+    graph.invoke(initial, config=cfg)
+    assert graph.get_state(cfg).next == ("await_review",)
 
     resumed = graph.invoke(
         Command(resume={"outcome": "approved", "action_execution_id": action_execution_id}),
