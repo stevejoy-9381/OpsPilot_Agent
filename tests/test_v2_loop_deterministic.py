@@ -143,6 +143,7 @@ class _InMemoryRunService:
         actor: str,
         expected_version: int,
         payload: dict[str, Any] | None = None,
+        resolution: str | None = None,
     ) -> tuple[_MockRunRecord, Any]:
         run = self.run_repo.get_by_id(ctx, run_id)
         if run.version != expected_version:

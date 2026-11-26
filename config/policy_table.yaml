@@ -1,0 +1,35 @@
+# OpsPilot Action-to-Diagnosis Policy Table
+#
+# Maps every (root_cause_category, mechanism) pair to permitted ActionTypes.
+# Loaded and validated at startup by agent/policy/table.py.
+
+version: "1.0"
+
+rules:
+  - category: bad_deploy
+    mechanism: connection_pool_exhaustion
+    allowed_actions:
+      - rollback_service
+    description: "Rollback culpable service deploy causing DB connection pool leak."
+
+  - category: bad_deploy
+    mechanism: cache_bypass_latency
+    allowed_actions:
+      - rollback_service
+    description: "Rollback culpable service deploy bypassing cache / causing N+1 queries."
+
+  - category: dependency_failure
+    mechanism: dependency_timeout
+    allowed_actions:
+      - restart_service
+    description: "In-process restart of affected service to reset stuck dependency client state."
+
+  - category: false_alarm
+    mechanism: none
+    allowed_actions: []
+    description: "False alarms close directly via no_action; never generate an action plan."
+
+  - category: unknown
+    mechanism: unknown
+    allowed_actions: []
+    description: "Unknown diagnoses escalate to human operators; never generate an action plan."

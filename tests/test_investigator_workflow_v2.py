@@ -142,6 +142,7 @@ class MockRunService:
         actor: str,
         expected_version: int,
         payload: dict[str, Any] | None = None,
+        resolution: str | None = None,
     ) -> tuple[Any, Any]:
         run = self.run_repo.get_by_id(ctx, run_id)
         run.status = to_status

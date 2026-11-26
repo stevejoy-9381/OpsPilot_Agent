@@ -1,5 +1,7 @@
 import hashlib
+
 import psycopg
+
 from apps.api.models.hashing import compute_plan_hash
 
 conn = psycopg.connect("postgresql://opspilot@127.0.0.1:54333/opspilot")

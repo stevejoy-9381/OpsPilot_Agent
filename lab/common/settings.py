@@ -46,3 +46,12 @@ class LabSettings(BaseSettings):
         default=None, validation_alias="OTEL_EXPORTER_OTLP_ENDPOINT"
     )
     log_level: str = Field(default="INFO", validation_alias="LOG_LEVEL")
+
+    # Admin persistence & test-only failure hooks
+    admin_database_url: str = Field(
+        default="postgresql://controller_admin:controller-admin-local-pw@lab-postgres:5432/lab",
+        validation_alias="LAB_ADMIN_DATABASE_URL",
+    )
+    lab_test_hooks_enabled: bool = Field(
+        default=False, validation_alias="LAB_TEST_HOOKS_ENABLED"
+    )

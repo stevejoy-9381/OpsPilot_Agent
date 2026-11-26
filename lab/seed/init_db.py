@@ -106,7 +106,7 @@ def setup_roles(
         cur.execute("GRANT SELECT, INSERT, UPDATE ON orders TO orders_rw;")
         cur.execute("GRANT USAGE, SELECT ON SEQUENCE orders_id_seq TO orders_rw;")
 
-        # Role 3: evidence_ro (read-only on deploys only)
+        # Role 3: evidence_ro (read-only on deploys and applied_actions)
         cur.execute("REVOKE ALL ON ALL TABLES IN SCHEMA public FROM evidence_ro;")
         cur.execute("REVOKE ALL ON ALL TABLES IN SCHEMA lab FROM evidence_ro;")
         cur.execute(
@@ -115,6 +115,7 @@ def setup_roles(
         cur.execute("GRANT USAGE ON SCHEMA public TO evidence_ro;")
         cur.execute("GRANT SELECT ON deploys TO evidence_ro;")
         cur.execute("GRANT SELECT ON lab.deploys TO evidence_ro;")
+        cur.execute("GRANT SELECT ON lab.applied_actions TO evidence_ro;")
 
         # Role 4: controller_admin (full access)
         cur.execute(

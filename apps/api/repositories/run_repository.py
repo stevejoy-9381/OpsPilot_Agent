@@ -20,6 +20,7 @@ from apps.api.domain.context import TenantContext
 from apps.api.domain.errors import (
     BudgetExhaustedError,
     ConcurrentModificationError,
+    LeaseLostError,
     NotFoundError,
 )
 from apps.api.models.tables import (
@@ -61,6 +62,24 @@ class RunRepository(BaseRepository):
         self.session.refresh(run)
         return run
 
+    def verify_lease_or_raise(
+        self, ctx: TenantContext, run_id: UUID, lease_token: UUID
+    ) -> None:
+        """Fencing check: verifies WHERE id = :run_id AND lease_token = :lease_token."""
+        self.set_tenant_context(ctx)
+        matched = self.session.scalar(
+            select(RunModel.id).where(
+                RunModel.id == run_id,
+                RunModel.tenant_id == ctx.tenant_id,
+                RunModel.lease_token == lease_token,
+            )
+        )
+        if matched is None:
+            raise LeaseLostError(
+                f"Worker lease lost for run {run_id} (fencing token mismatch)",
+                details={"run_id": str(run_id), "lease_token": str(lease_token)},
+            )
+
     def update_status_optimistic(
         self,
         ctx: TenantContext,
@@ -68,32 +87,36 @@ class RunRepository(BaseRepository):
         expected_version: int,
         to_status: str,
         finished: bool = False,
+        resolution: str | None = None,
+        lease_token: UUID | None = None,
     ) -> RunModel:
-        """Updates run status using optimistic locking.
-
-        Checks that version == expected_version. If 0 rows updated, raises
-        ConcurrentModificationError.
-
-        Note: PostgreSQL trigger trg_runs_enforce_transition automatically
-        increments version, updates updated_at, and sets finished_at when entering
-        terminal statuses.
-        """
+        """Updates run status using optimistic locking and optional lease_token fencing."""
         self.set_tenant_context(ctx)
 
-        # Execute atomic update conditioned on id, tenant_id, and expected_version
+        update_values: dict[str, Any] = {"status": to_status}
+        if resolution is not None:
+            update_values["resolution"] = resolution
+
+        conditions = [
+            RunModel.id == run_id,
+            RunModel.tenant_id == ctx.tenant_id,
+            RunModel.version == expected_version,
+        ]
+        if lease_token is not None:
+            conditions.append(RunModel.lease_token == lease_token)
+
+        # Execute atomic update conditioned on id, tenant_id, expected_version, and lease_token
         stmt = (
             update(RunModel)
-            .where(
-                RunModel.id == run_id,
-                RunModel.tenant_id == ctx.tenant_id,
-                RunModel.version == expected_version,
-            )
-            .values(status=to_status)
+            .where(*conditions)
+            .values(**update_values)
             .returning(RunModel.id, RunModel.version, RunModel.status)
         )
         result = self.session.execute(stmt).fetchone()
 
         if result is None:
+            if lease_token is not None:
+                self.verify_lease_or_raise(ctx, run_id, lease_token)
             # Check whether run exists to give precise actual version
             current = self.session.scalar(
                 select(RunModel.version).where(

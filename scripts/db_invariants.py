@@ -17,7 +17,6 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -156,6 +155,112 @@ def check_invariants() -> int:
                     print(f"    - Observation {m['id']} (evidence_id={m['evidence_id']}, run_id={m['run_id']}): stored={m['stored_hash']} recomputed={m['recomputed_hash']}")
             else:
                 print(f"  PASSED: {len(observations)} observations verified with 0 content_hash mismatches.")
+            print()
+
+            # ---------------------------------------------------------------
+            # Check 5: Approved plans without exactly one approval row
+            # ---------------------------------------------------------------
+            print("[CHECK 5] Approved plans without exactly one 'approve' row")
+            cur.execute(
+                """
+                SELECT p.id AS plan_id, p.run_id, COUNT(a.id) AS approval_count
+                FROM app.action_plans p
+                LEFT JOIN app.approvals a ON a.plan_id = p.id AND a.decision = 'approve'
+                WHERE p.status IN ('approved', 'executed')
+                GROUP BY p.id, p.run_id
+                HAVING COUNT(a.id) <> 1;
+                """
+            )
+            bad_approval_counts = cur.fetchall()
+            if bad_approval_counts:
+                violations_found += len(bad_approval_counts)
+                print(f"  FAILED: Found {len(bad_approval_counts)} approved plans with != 1 approval row")
+            else:
+                print("  PASSED: Every approved/executed plan has exactly 1 approve row.")
+            print()
+
+            # ---------------------------------------------------------------
+            # Check 6: Executions without an approved/executed plan
+            # ---------------------------------------------------------------
+            print("[CHECK 6] Action executions without an approved/executed plan")
+            cur.execute(
+                """
+                SELECT e.id AS exec_id, e.plan_id, p.status AS plan_status
+                FROM app.action_executions e
+                JOIN app.action_plans p ON e.plan_id = p.id
+                WHERE p.status NOT IN ('approved', 'executed');
+                """
+            )
+            unapproved_execs = cur.fetchall()
+            if unapproved_execs:
+                violations_found += len(unapproved_execs)
+                print(f"  FAILED: Found {len(unapproved_execs)} executions on non-approved plans")
+            else:
+                print("  PASSED: 0 executions on non-approved plans.")
+            print()
+
+            # ---------------------------------------------------------------
+            # Check 7: Plans approved after expires_at
+            # ---------------------------------------------------------------
+            print("[CHECK 7] Plans approved after expires_at")
+            cur.execute(
+                """
+                SELECT p.id AS plan_id, a.decided_at, p.expires_at
+                FROM app.approvals a
+                JOIN app.action_plans p ON a.plan_id = p.id
+                WHERE a.decision = 'approve' AND a.decided_at > p.expires_at;
+                """
+            )
+            late_approvals = cur.fetchall()
+            if late_approvals:
+                violations_found += len(late_approvals)
+                print(f"  FAILED: Found {len(late_approvals)} plans approved after expires_at")
+            else:
+                print("  PASSED: 0 plans approved after expires_at.")
+            print()
+
+            # ---------------------------------------------------------------
+            # Check 8: Runs in needs_review whose plan is not proposed
+            # ---------------------------------------------------------------
+            print("[CHECK 8] Runs in needs_review without a proposed plan")
+            cur.execute(
+                """
+                SELECT r.id AS run_id
+                FROM app.runs r
+                WHERE r.status = 'needs_review'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM app.action_plans p
+                      WHERE p.run_id = r.id AND p.status = 'proposed'
+                  );
+                """
+            )
+            bad_review_runs = cur.fetchall()
+            if bad_review_runs:
+                violations_found += len(bad_review_runs)
+                print(f"  FAILED: Found {len(bad_review_runs)} needs_review runs without a proposed plan")
+            else:
+                print("  PASSED: Every needs_review run has a proposed plan.")
+            print()
+
+            # ---------------------------------------------------------------
+            # Check 9: Runs with two or more active (proposed) plans
+            # ---------------------------------------------------------------
+            print("[CHECK 9] Runs with two or more active (proposed) plans")
+            cur.execute(
+                """
+                SELECT run_id, COUNT(*) AS active_count
+                FROM app.action_plans
+                WHERE status = 'proposed'
+                GROUP BY run_id
+                HAVING COUNT(*) > 1;
+                """
+            )
+            multi_active = cur.fetchall()
+            if multi_active:
+                violations_found += len(multi_active)
+                print(f"  FAILED: Found {len(multi_active)} runs with >= 2 active proposed plans")
+            else:
+                print("  PASSED: 0 runs with multiple active proposed plans.")
             print()
 
     print("=" * 80)

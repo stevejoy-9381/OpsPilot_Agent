@@ -74,6 +74,8 @@ class RunService:
         actor: str,
         expected_version: int,
         payload: dict[str, Any] | None = None,
+        resolution: str | None = None,
+        lease_token: UUID | None = None,
     ) -> tuple[RunModel, RunEventModel]:
         """Transitions a run to a new status under optimistic concurrency control.
 
@@ -89,6 +91,9 @@ class RunService:
         - ConcurrentModificationError if version != expected_version.
         - IllegalTransitionError if transition is invalid.
         """
+        if lease_token is not None:
+            self.run_repo.verify_lease_or_raise(ctx, run_id, lease_token)
+
         # 1. Fetch current run inside transaction to determine from_status
         run = self.run_repo.get_by_id(ctx, run_id)
         from_status = run.status
@@ -114,12 +119,23 @@ class RunService:
                 )
 
         # 4. Atomic optimistic update (in case another transaction committed between our read and update)
-        updated_run = self.run_repo.update_status_optimistic(
-            ctx=ctx,
-            run_id=run_id,
-            expected_version=expected_version,
-            to_status=to_status,
-        )
+        if resolution is not None:
+            updated_run = self.run_repo.update_status_optimistic(
+                ctx=ctx,
+                run_id=run_id,
+                expected_version=expected_version,
+                to_status=to_status,
+                resolution=resolution,
+                lease_token=lease_token,
+            )
+        else:
+            updated_run = self.run_repo.update_status_optimistic(
+                ctx=ctx,
+                run_id=run_id,
+                expected_version=expected_version,
+                to_status=to_status,
+                lease_token=lease_token,
+            )
 
         # 5. Record audit event in the same transaction
         event_payload = {
@@ -154,14 +170,11 @@ class RunService:
         error: dict[str, Any] | str,
         actor: str = "system",
         target_status: str | None = None,
+        lease_token: UUID | None = None,
     ) -> RunModel:
-        """Records a typed error payload and event on the run.
-
-        If target_status (e.g. 'escalated' or 'failed') is specified, attempts
-        to transition to it ONLY IF the transition table permits. If the transition
-        is not permitted from the current status, the error is still recorded and
-        the run remains in its current status.
-        """
+        """Records a typed error payload and event on the run."""
+        if lease_token is not None:
+            self.run_repo.verify_lease_or_raise(ctx, run_id, lease_token)
         run = self.run_repo.get_by_id(ctx, run_id)
         error_payload = error if isinstance(error, dict) else {"message": str(error)}
 
@@ -210,8 +223,11 @@ class RunService:
         event_type: str,
         actor: str,
         payload: dict[str, Any] | None = None,
+        lease_token: UUID | None = None,
     ) -> RunEventModel:
         """Appends an event to the run's audit log with a gap-free monotonic sequence."""
+        if lease_token is not None:
+            self.run_repo.verify_lease_or_raise(ctx, run_id, lease_token)
         return self.run_repo.append_event(
             ctx=ctx,
             run_id=run_id,
@@ -226,8 +242,11 @@ class RunService:
         run_id: UUID,
         diagnosis_data: dict[str, Any],
         status: str = "draft",
+        lease_token: UUID | None = None,
     ) -> DiagnosisModel:
         """Persists or updates a diagnosis record and records an audit event."""
+        if lease_token is not None:
+            self.run_repo.verify_lease_or_raise(ctx, run_id, lease_token)
         diag = self.run_repo.save_diagnosis(
             ctx=ctx,
             run_id=run_id,
@@ -255,9 +274,101 @@ class RunService:
         ctx: TenantContext,
         run_id: UUID,
         n: int = 1,
+        lease_token: UUID | None = None,
     ) -> int:
         """Decrements remaining tool calls by n atomically.
 
         Raises BudgetExhaustedError if remaining_calls < n.
         """
+        if lease_token is not None:
+            self.run_repo.verify_lease_or_raise(ctx, run_id, lease_token)
         return self.run_repo.decrement_calls(ctx, run_id, n=n)
+
+
+class FencedRunService:
+    """Worker-facing RunService wrapper requiring a valid lease_token on every write.
+
+    Every state-changing call enforces `WHERE lease_token = :token`. If the run's
+    lease was reclaimed by another worker, LeaseLostError is raised immediately.
+    """
+
+    def __init__(self, inner: RunService, lease_token: UUID) -> None:
+        self._inner = inner
+        self.lease_token = lease_token
+        self.session = inner.session
+        self.run_repo = inner.run_repo
+
+    def transition(
+        self,
+        ctx: TenantContext,
+        run_id: UUID,
+        to_status: str,
+        actor: str,
+        expected_version: int,
+        payload: dict[str, Any] | None = None,
+        resolution: str | None = None,
+    ) -> tuple[RunModel, RunEventModel]:
+        return self._inner.transition(
+            ctx=ctx,
+            run_id=run_id,
+            to_status=to_status,
+            actor=actor,
+            expected_version=expected_version,
+            payload=payload,
+            resolution=resolution,
+            lease_token=self.lease_token,
+        )
+
+    def record_error(
+        self,
+        ctx: TenantContext,
+        run_id: UUID,
+        error: dict[str, Any] | str,
+        actor: str = "system",
+        target_status: str | None = None,
+    ) -> RunModel:
+        return self._inner.record_error(
+            ctx=ctx,
+            run_id=run_id,
+            error=error,
+            actor=actor,
+            target_status=target_status,
+            lease_token=self.lease_token,
+        )
+
+    def append_event(
+        self,
+        ctx: TenantContext,
+        run_id: UUID,
+        event_type: str,
+        actor: str,
+        payload: dict[str, Any] | None = None,
+    ) -> RunEventModel:
+        return self._inner.append_event(
+            ctx=ctx,
+            run_id=run_id,
+            event_type=event_type,
+            actor=actor,
+            payload=payload,
+            lease_token=self.lease_token,
+        )
+
+    def save_diagnosis(
+        self,
+        ctx: TenantContext,
+        run_id: UUID,
+        diagnosis_data: dict[str, Any],
+        status: str = "draft",
+    ) -> DiagnosisModel:
+        return self._inner.save_diagnosis(
+            ctx=ctx,
+            run_id=run_id,
+            diagnosis_data=diagnosis_data,
+            status=status,
+            lease_token=self.lease_token,
+        )
+
+    def decrement_calls(self, ctx: TenantContext, run_id: UUID, n: int = 1) -> int:
+        return self._inner.decrement_calls(
+            ctx=ctx, run_id=run_id, n=n, lease_token=self.lease_token
+        )

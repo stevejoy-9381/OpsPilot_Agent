@@ -105,12 +105,20 @@ def create_orders_app(
             msg="Orders state reset and active pool state reconciled",
         )
 
+    async def on_restart() -> None:
+        await store_instance.drain_leaks()
+        logger.info(
+            event="orders_client_restarted",
+            msg="Orders pool and dependency client state reset",
+        )
+
     admin_router = create_admin_router(
         settings=app_settings,
         fault_state=fault_state,
         version_registry=version_registry,
         on_deploy=on_deploy,
         on_reset=on_reset,
+        on_restart=on_restart,
     )
     metrics_router = create_metrics_router(app_metrics)
 

@@ -382,9 +382,11 @@ def finalize_node(
                 to_status="completed",
                 actor="investigator",
                 expected_version=ver,
+                resolution="false_alarm_closed",
                 payload={
                     "reason": termination_reason,
                     "action": "no_action",
+                    "resolution": "false_alarm_closed",
                     "outcome_kind": "diagnosed",
                 },
             )
@@ -435,7 +437,7 @@ def finalize_node(
             }
         else:
             effective_handoff = handoff_port or (
-                DefaultHandoffStub(run_service) if run_service else None
+                DefaultHandoffStub(run_service) if (run_service and not is_v2) else None
             )
             if effective_handoff:
                 merged_state: dict[str, Any] = dict(state)

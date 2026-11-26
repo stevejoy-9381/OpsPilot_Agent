@@ -99,3 +99,21 @@ OpsPilot operates strictly against a local **Docker Compose** lab of synthetic t
 - **Positive**: Zero cloud costs, zero accidental disruption to real workloads.
 - **Positive**: Can run completely air-gapped on developer workstations.
 - **Negative**: Does not test multi-cloud or distributed edge topologies (acknowledged non-goal).
+
+---
+
+## ADR-006: LangGraph Checkpointer Versions & Interrupt API Behavior
+
+### Context
+Feature 8 introduces durable human-in-the-loop pause/resume (`await_review` using `langgraph.types.interrupt` and `Command(resume=...)`) backed by `PostgresSaver` on the dedicated `checkpoints` schema (`opspilot_checkpointer` role).
+
+### Pinned Versions
+- `langgraph==0.3.5`
+- `langgraph-checkpoint-postgres==2.0.16`
+- `langgraph-checkpoint==2.1.2`
+
+### Observed API Quirks & Mitigations
+1. **`graph.invoke()` Interrupt Return Shape**: In `langgraph==0.3.5`, `graph.invoke(input, config)` returns an `AddableValuesDict` **without** an `'__interrupt__'` key when a node calls `interrupt()`.
+2. **`StateSnapshot` Interrupt Inspection**: `graph.get_state(config)` returns a `StateSnapshot` where pending interrupts are stored on `snap.tasks[0].interrupts` (not `snap.interrupts`), and `snap.next` contains `('await_review',)`.
+3. **`PostgresSaver` Connection Settings**: `PostgresSaver(conn)` requires `autocommit=True`, `prepare_threshold=0`, `row_factory=dict_row`, and `SET search_path = checkpoints, public;` so checkpointer tables reside strictly in `checkpoints.*`.
+4. **Mitigation**: Both `WorkerService.process_run()` and `WorkerService.resume_interrupted_run()` inspect `graph.get_state(config).next` (and fallback `'__interrupt__'` check) rather than relying solely on `'__interrupt__'` in the `invoke()` return dict.

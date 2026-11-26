@@ -28,6 +28,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+broker = [
+    "pydantic==2.10.6",
+    "pydantic-settings==2.8.1",
+    "sqlalchemy==2.0.38",
+    "psycopg[binary]==3.2.5",
+    "httpx==0.28.1",
+    "structlog==25.1.0",
+    "pyyaml>=6.0",
+]
 dev = [
     "pytest==8.3.5",
     "pytest-asyncio==0.25.3",
@@ -90,4 +99,5 @@ markers = [
     "live: live tests against external APIs (skipped unless GEMINI_API_KEY is provided)",
     "lab: end-to-end lab tests against simulated scenarios and oracle",
     "lab_fast: fast CI subset of lab tests (S1 and S3 with short timings)",
+    "durability: subprocess SIGKILL crash and duplicate-delivery tests requiring live Postgres",
 ]

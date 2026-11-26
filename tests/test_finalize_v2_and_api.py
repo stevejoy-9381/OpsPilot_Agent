@@ -46,6 +46,7 @@ class _FakeRun:
         self.incident_id = incident_id
         self.case_id = "S4"
         self.status = status
+        self.resolution: str | None = None
         self.version = version
         self.remaining_calls = 5
         self.max_calls = 8
@@ -74,6 +75,7 @@ class _FakeDiag:
         self.what_would_change = data.get("what_would_change")
         self.gate_rejection_count = int(data.get("gate_rejection_count", 0))
         self.status = status
+        self.resolution: str | None = None
         self.created_at = datetime.now(timezone.utc)
 
 
@@ -140,11 +142,14 @@ class _InMemoryRunService:
         actor: str,
         expected_version: int,
         payload: dict[str, Any] | None = None,
+        resolution: str | None = None,
     ) -> tuple[_FakeRun, _FakeEvent]:
         run = self.run_repo.get_by_id(ctx, run_id)
         if run.version != expected_version:
             raise ConcurrentModificationError(str(run_id), expected_version, run.version)
         run.status = to_status
+        if resolution is not None:
+            run.resolution = resolution
         run.version += 1
         if to_status in ("completed", "escalated", "failed"):
             run.finished_at = datetime.now(timezone.utc)

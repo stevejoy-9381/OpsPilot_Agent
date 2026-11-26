@@ -49,7 +49,7 @@ FORBIDDEN_TERMS_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("fault", re.compile(r"(?i)\bfaults?\b")),
     ("inject", re.compile(r"(?i)\binject(ed|ion|s|ing)?\b")),
     ("ground_truth", re.compile(r"(?i)\bground[-_]?truth\b")),
-    ("admin_endpoint", re.compile(r"/admin/(?:state|deploy|faults|reset)")),
+    ("admin_endpoint", re.compile(r"/admin/(?:state|deploy|faults|reset|actions|test-hooks)")),
     ("admin_header", re.compile(r"(?i)X-Lab-Admin-Token")),
     ("diff_bug", re.compile(r"(?i)\bbugs?\b")),
     ("diff_leak", re.compile(r"(?i)\bleaks?\b")),

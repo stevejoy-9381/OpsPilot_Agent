@@ -193,6 +193,7 @@ def create_run(
         version=1,
         remaining_calls=effective_max_calls,
         max_calls=effective_max_calls,
+        created_by_user_id=principal.user_id,
     )
     repo.create(ctx, run)
     repo.append_event(
@@ -210,6 +211,7 @@ def create_run(
         incident_id=run.incident_id,
         case_id=run.case_id,
         status=run.status,
+        resolution=getattr(run, "resolution", None),
         version=run.version,
         remaining_calls=run.remaining_calls,
         max_calls=run.max_calls,
@@ -344,6 +346,7 @@ def get_run(
         incident_id=run.incident_id,
         case_id=run.case_id,
         status=run.status,
+        resolution=getattr(run, "resolution", None),
         version=run.version,
         remaining_calls=run.remaining_calls,
         max_calls=run.max_calls,

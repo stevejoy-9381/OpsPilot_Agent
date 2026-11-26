@@ -9,6 +9,7 @@ import asyncio
 import json
 
 import httpx
+
 from apps.api.main import app
 
 
@@ -80,7 +81,7 @@ async def main():
         print()
 
         # Login as reviewer first
-        rev_login_pre = await client.post(
+        _ = await client.post(
             "/auth/login",
             json={"email": "bob.reviewer@example.com", "password": "ReviewerPass123!"},
         )

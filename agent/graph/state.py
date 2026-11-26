@@ -46,12 +46,14 @@ class TerminationReason(str, Enum):
     EVIDENCE_UNAVAILABLE = "evidence_unavailable"
     MULTIPLE_CONCURRENT_CAUSES = "multiple_concurrent_causes"
     FALSE_ALARM_NO_ACTION = "false_alarm_no_action"
+    PROPOSAL_POLICY_VIOLATION = "policy_violation"
+    MODEL_DECLINED = "model_declined"
 
 
 # Mapping from TerminationReason to final run status (operationalizing Section 5.1 of investigator design)
 TERMINATION_STATUS_MAP: dict[TerminationReason, str] = {
     TerminationReason.CONCLUDED_BY_MODEL: "needs_review",
-    TerminationReason.FALSE_ALARM_NO_ACTION: "needs_review",
+    TerminationReason.FALSE_ALARM_NO_ACTION: "completed",
     TerminationReason.BUDGET_EXHAUSTED: "escalated",
     TerminationReason.STEP_CAP_REACHED: "escalated",
     TerminationReason.TIMEOUT_EXCEEDED: "escalated",
@@ -63,6 +65,8 @@ TERMINATION_STATUS_MAP: dict[TerminationReason, str] = {
     TerminationReason.CONTRADICTORY_EVIDENCE: "escalated",
     TerminationReason.EVIDENCE_UNAVAILABLE: "escalated",
     TerminationReason.MULTIPLE_CONCURRENT_CAUSES: "escalated",
+    TerminationReason.PROPOSAL_POLICY_VIOLATION: "escalated",
+    TerminationReason.MODEL_DECLINED: "escalated",
 }
 
 
@@ -222,6 +226,17 @@ class InvestigationState(TypedDict, total=False):
     max_steps: int
     max_tool_calls: int
     schema_version: str
+    handoff_result: dict[str, Any] | None
+    proposed_plan_id: str | None
+    proposed_plan_hash: str | None
+    proposed_action: str | None
+    proposed_service: str | None
+    proposed_target_id: str | None
+    proposed_expected_version: str | None
+    proposed_rollback_to_version: str | None
+    proposed_expires_at: str | None
+    approval_decision: str | None
+    action_execution_id: str | None
 
 
 class InvestigationStateModel(BaseModel):

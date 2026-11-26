@@ -31,3 +31,48 @@ jobs:
 
       - name: Run full lab scenarios E2E suite
         run: uv run pytest -v -m lab tests/lab_e2e
+
+  durability:
+    name: SIGKILL Subprocess Durability Suite
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17.4-alpine
+        env:
+          POSTGRES_USER: opspilot
+          POSTGRES_PASSWORD: opspilot_dev_password
+          POSTGRES_DB: opspilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5.2.1
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: postgresql+psycopg://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+        run: uv run alembic upgrade head
+
+      - name: Run SIGKILL durability tests
+        env:
+          DATABASE_URL: postgresql+psycopg://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+          TEST_DB_URL: postgresql://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+        run: uv run pytest tests/durability/ -v -m durability

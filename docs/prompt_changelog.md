@@ -52,3 +52,22 @@
   2. **Output Token Headroom & Compact Tool Args**: Increase `max_output_tokens` above `1024` (or compact ledger/timestamp fields) to prevent JSON truncation mid-string on multi-field step outputs.
   3. **Rate-Limit & Quota Pacing**: Pace live requests below Free Tier 5 RPM (`12–15s` spacing or paid tier) and interleave `v1`/`v2` trials so daily quota exhaustion does not starve one version completely.
   4. **Tighten Authorized Evidence Tool Guidance**: Remind the model in-prompt which evidence tools are authorized for the current run to reduce `citation_rejected` (`unauthorized_tool_ids`) events observed in `v1`.
+
+---
+
+### `proposal_v1.md` (Committed)
+- **Date**: 2026-11-25
+- **Prompt Path**: `agent/prompts/proposal_v1.md`
+- **Prompt Hash (SHA-256)**: `073d2e5226166cce142c1ffd7672d98a75bd974ebe587e26fb07c611296ea8b7`
+- **Hash Computation**: `SHA-256(proposal_prompt_text + "\n---TOOL_SPECS---\n" + canonical_json(proposal_schema_spec))`
+- **Leakage Scan Status**: PASS (Zero hits across forbidden family names, forbidden terms, and scenario IDs).
+- **Description / Reason**: Initial committed recovery proposal prompt for Feature 7 (`propose` node). Leaves `investigator_system_v2.md` frozen. Instructs the model to propose one allowed action (`rollback_service` or `restart_service`) or decline (`decision="decline"`), supply only the model-owned fields with `expected_version` copied verbatim from `TargetState` and `rationale_evidence_ids` from the context, expect deterministic policy validation rejections as normal repair signals, and treat `<untrusted_data>` blocks strictly as data.
+
+---
+
+## Candidate `proposal_v2` (Proposed for Future Evaluation)
+- **Date**: 2026-11-25
+- **Status**: PROPOSAL ONLY (`proposal_v1.md`, `config/policy_table.yaml`, and `agent/policy/validator.py` remain untouched)
+- **Motivation from Live `proposal_v1` Run (`evals/results/proposal_v1/20261125_153328/`)**:
+  1. **Unblock Upstream `v2` Schema (`GeminiClient`)**: Strip `additionalProperties` / `additional_properties` when translating `FlatAgentStepV2` (and `ProposalDecision`) for Gemini `generation_config.response_schema`, which blocked `15/15` live trials before reaching `propose_node`.
+  2. **Standalone Proposal Probe**: Optionally evaluate `proposal_v1.md` directly on pre-diagnosed `S1`–`S4` states in addition to end-to-end `v2 -> propose` runs once `GeminiClient` schema sanitization is in place.

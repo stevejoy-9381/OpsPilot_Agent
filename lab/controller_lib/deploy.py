@@ -71,6 +71,71 @@ def _get_database_url(override_url: str | None = None) -> str:
     return clean
 
 
+def record_deploy_in_tx(
+    conn: psycopg.Connection[Any],
+    *,
+    service: str,
+    old_version: str,
+    new_version: str,
+    author: str | None = None,
+) -> DeployRecord:
+    """Inserts a lab.deploys row using the caller's open PostgreSQL transaction."""
+    meta: VersionMetadata = get_version_metadata(service, old_version, new_version)
+    deploy_author = author or meta.author
+    deploy_id = f"dep-{uuid.uuid4().hex[:12]}"
+    deployed_at = datetime.now(timezone.utc)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO lab.deploys (
+                deploy_id, service, old_version, new_version, deployed_at,
+                author, summary, changed_files, config_changes, diff_text,
+                version, commit_sha, deployed_by, status
+            ) VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s,
+                %s, %s, %s, %s
+            ) RETURNING deploy_id, service, old_version, new_version, deployed_at,
+                        author, summary, changed_files, config_changes, diff_text;
+            """,
+            (
+                deploy_id,
+                service,
+                old_version,
+                new_version,
+                deployed_at,
+                deploy_author,
+                meta.summary,
+                json.dumps(meta.changed_files),
+                json.dumps(meta.config_changes),
+                meta.diff_text,
+                new_version,
+                "synthetic",
+                deploy_author,
+                "SUCCESS",
+            ),
+        )
+        row = cur.fetchone()
+        assert row is not None
+
+        changed_files = row[7] if isinstance(row[7], list) else json.loads(row[7])
+        config_changes = row[8] if isinstance(row[8], dict) else json.loads(row[8])
+
+        return DeployRecord(
+            deploy_id=row[0],
+            service=row[1],
+            old_version=row[2],
+            new_version=row[3],
+            deployed_at=row[4],
+            author=row[5],
+            summary=row[6],
+            changed_files=changed_files,
+            config_changes=config_changes,
+            diff_text=row[9],
+        )
+
+
 async def deploy(
     service: str,
     new_version: str,

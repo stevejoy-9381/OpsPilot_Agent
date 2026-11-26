@@ -109,3 +109,54 @@ class BudgetExhaustedError(DomainError):
         self.run_id = run_id
         self.remaining_calls = remaining_calls
         self.requested_calls = requested_calls
+
+
+class PlanHashMismatchError(DomainError):
+    """Raised when submitted_plan_hash does not match stored action_plans.plan_hash."""
+
+
+class PlanExpiredError(DomainError):
+    """Raised when an action plan has passed its expires_at deadline."""
+
+
+class StaleTargetError(DomainError):
+    """Raised when the live target version differs from plan.expected_version."""
+
+
+class AlreadyDecidedError(DomainError):
+    """Raised when a plan has already been decided."""
+
+
+class DecisionConflictError(DomainError):
+    """Raised when the same reviewer submits a conflicting decision for a plan."""
+
+
+class PlanSupersededError(DomainError):
+    """Raised when a plan was superseded by a newer proposal."""
+
+
+class InvalidPlanStatusError(DomainError):
+    """Raised when a plan is not in the expected 'proposed' state."""
+
+
+class PlanNotProposedError(InvalidPlanStatusError):
+    """Raised when a plan is not in 'proposed' status."""
+
+
+class RunNotInReviewError(DomainError):
+    """Raised when the owning run is not in 'needs_review' state."""
+
+
+class SeparationOfDutiesError(DomainError):
+    """Raised when a reviewer attempts to approve a run they created under 4-eyes policy."""
+
+
+class TargetStateUnavailableError(DomainError):
+    """Raised when live target state cannot be read or is stale prior to approval."""
+
+
+TargetUnavailableError = TargetStateUnavailableError
+
+
+class LeaseLostError(DomainError):
+    """Raised when a worker's lease_token is no longer valid (fencing check failed)."""

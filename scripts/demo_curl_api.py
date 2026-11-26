@@ -13,6 +13,7 @@ import json
 import uuid
 
 import httpx
+
 from apps.api.main import app
 
 
@@ -51,7 +52,7 @@ async def main():
         print("# 1. POST /incidents: Create incident from seeded benchmark case S1")
         print("# ============================================================================")
         inc_idemp_key = f"inc-demo-{uuid.uuid4().hex[:8]}"
-        print(f"curl -i -X POST http://localhost:8000/incidents \\")
+        print("curl -i -X POST http://localhost:8000/incidents \\")
         print("    -b opspilot_session=<reviewer_cookie> \\")
         print(f'    -H "X-CSRF-Token: {csrf_token}" \\')
         print(f'    -H "Idempotency-Key: {inc_idemp_key}" \\')
@@ -79,7 +80,7 @@ async def main():
         print("# 2. POST /runs: Create investigation run on incident (status: queued)")
         print("# ============================================================================")
         run_idemp_key = f"run-demo-{uuid.uuid4().hex[:8]}"
-        print(f"curl -i -X POST http://localhost:8000/runs \\")
+        print("curl -i -X POST http://localhost:8000/runs \\")
         print("    -b opspilot_session=<reviewer_cookie> \\")
         print(f'    -H "X-CSRF-Token: {csrf_token}" \\')
         print(f'    -H "Idempotency-Key: {run_idemp_key}" \\')

@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     max_tool_calls: int = Field(default=8, alias="MAX_TOOL_CALLS")
     run_timeout_seconds: int = Field(default=120, alias="RUN_TIMEOUT_SECONDS")
     approval_ttl_seconds: int = Field(default=900, alias="APPROVAL_TTL_SECONDS")
+    target_state_max_age_seconds: int = Field(
+        default=30, alias="TARGET_STATE_MAX_AGE_SECONDS"
+    )
+    enforce_separation_of_duties: bool = Field(
+        default=False, alias="ENFORCE_SEPARATION_OF_DUTIES"
+    )
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
 

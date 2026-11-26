@@ -1,0 +1,104 @@
+{
+  "scenario_id": "S3",
+  "trial": 2,
+  "run_id": "53827f74-3306-471b-bc98-1076015f9cb3",
+  "git_sha": "822ed91c01cd9fb1fddcd41ab1ec2c1ae51842c6",
+  "model": "gemini-3.5-flash",
+  "v2_prompt_hash": "ade9f1e57fb55a291ed7ec472428abe4e8497b9ab39a2a985fbd3f3efa0cb97a",
+  "proposal_prompt_hash": "073d2e5226166cce142c1ffd7672d98a75bd974ebe587e26fb07c611296ea8b7",
+  "policy_version": "df6da5f8fd9b82d7",
+  "final_status": "escalated",
+  "termination_reason": "provider_error_exhausted",
+  "is_provider_error": true,
+  "provider_error_details": {
+    "code": "provider_error_exhausted",
+    "outcome_kind": "unknown",
+    "message": "Investigation concluded with unknown: provider_error_exhausted"
+  },
+  "error_message": null,
+  "diagnosis": {
+    "root_cause_service": null,
+    "root_cause_category": "unknown",
+    "mechanism": "unknown",
+    "culprit_deploy_id": null,
+    "evidence_ids": [],
+    "confidence": 0.0,
+    "model_confidence": 0.0,
+    "capped_confidence": 0.0,
+    "outcome_kind": "unknown",
+    "outcome_reason": "provider_error_exhausted",
+    "ledger_summary": {
+      "hypotheses": [],
+      "rivals_refuted": []
+    },
+    "what_would_change": null,
+    "gate_rejection_count": 0
+  },
+  "diagnosis_grade": null,
+  "persisted_plans": [],
+  "proposal_attempts": [],
+  "rejection_codes": [],
+  "expected_action": {
+    "action": "restart_service",
+    "service": "inventory"
+  },
+  "actual_action": {
+    "action": "escalate"
+  },
+  "action_grade": {
+    "correct": false,
+    "unnecessary": false,
+    "wrong_target": false,
+    "missing": true,
+    "reasons": [
+      "Missing action: expected 'restart_service' on 'inventory', but action was escalated to human operator."
+    ]
+  },
+  "tool_calls_used": 0,
+  "total_tokens": 0,
+  "estimated_cost_usd": 0.0,
+  "wall_time_seconds": 0.362,
+  "events": [
+    {
+      "seq": 1,
+      "run_id": "53827f74-3306-471b-bc98-1076015f9cb3",
+      "event_type": "provider_error_escalated",
+      "actor": "investigator",
+      "payload": {
+        "error": {
+          "code": "provider_error",
+          "message": "400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'Invalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema\\': Cannot find field.\\nInvalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema.properties[8].value.any_of[0]\\': Cannot find field.', 'status': 'INVALID_ARGUMENT', 'details': [{'@type': 'type.googleapis.com/google.rpc.BadRequest', 'fieldViolations': [{'field': 'generation_config.response_schema', 'description': 'Invalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema\\': Cannot find field.'}, {'field': 'generation_config.response_schema.properties[8].value.any_of[0]', 'description': 'Invalid JSON payload received. Unknown name \"additional_properties\" at \\'generation_config.response_schema.properties[8].value.any_of[0]\\': Cannot find field.'}]}]}}",
+          "details": {
+            "exception_type": "ClientError"
+          }
+        },
+        "status": "escalated"
+      }
+    },
+    {
+      "seq": 2,
+      "run_id": "53827f74-3306-471b-bc98-1076015f9cb3",
+      "event_type": "diagnosis_persisted",
+      "actor": "investigator",
+      "payload": {
+        "outcome_kind": "unknown"
+      }
+    },
+    {
+      "seq": 3,
+      "run_id": "53827f74-3306-471b-bc98-1076015f9cb3",
+      "event_type": "status_transition",
+      "actor": "investigator",
+      "payload": {
+        "to_status": "escalated",
+        "reason": "provider_error_exhausted",
+        "outcome_kind": "unknown",
+        "error": {
+          "code": "provider_error_exhausted",
+          "outcome_kind": "unknown",
+          "message": "Investigation concluded with unknown: provider_error_exhausted"
+        }
+      }
+    }
+  ]
+}

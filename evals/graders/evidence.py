@@ -8,7 +8,7 @@ from datetime import datetime
 
 from evals.graders.models import Diagnosis, EvidenceGrade, EvidenceItem, EvidenceStore
 
-DEFAULT_ALLOWED_SOURCES: set[str] = {"prometheus", "logs", "traces", "deploys"}
+DEFAULT_ALLOWED_SOURCES: set[str] = {"prometheus", "logs", "traces", "deploys", "diff"}
 
 
 def grade_evidence_support(
@@ -30,7 +30,17 @@ def grade_evidence_support(
         lookup = evidence_store
     elif isinstance(evidence_store, list):
         for entry in evidence_store:
-            lookup[entry.evidence_id] = entry
+            if hasattr(entry, "source"):
+                lookup[entry.evidence_id] = entry
+            else:
+                raw_src = getattr(entry, "source_id", None) or getattr(entry, "tool", "telemetry")
+                src = raw_src.split(":")[0] if ":" in raw_src else raw_src
+                ts = getattr(entry, "window_end", None) or getattr(entry, "captured_at", None)
+                lookup[entry.evidence_id] = EvidenceItem(
+                    evidence_id=entry.evidence_id,
+                    timestamp=ts,
+                    source=src,
+                )
 
     total_count = len(diagnosis.evidence_ids)
     invalid_ids: list[str] = []
@@ -57,7 +67,7 @@ def grade_evidence_support(
             continue
 
         # 2. Scope / Tool authorization check
-        source_clean = item.source.lower().strip()
+        source_clean = item.source.lower().strip().split(":")[0]
         if source_clean not in allowed:
             unauthorized_tool_ids.append(ev_id)
 

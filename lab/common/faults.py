@@ -73,6 +73,15 @@ class FaultState:
             self._dependency_error_rate.clear()
             self._leak_on_conflict = False
 
+    async def reset_dependency_client_state(self) -> None:
+        """Clears dependency client latency/error state (Option A restart semantics).
+
+        Preserves version-profile fault flags such as leak_on_conflict.
+        """
+        async with self._lock:
+            self._dependency_latency_ms.clear()
+            self._dependency_error_rate.clear()
+
     async def get_state(self) -> dict[str, Any]:
         """Returns an immutable dictionary snapshot of the current fault state."""
         async with self._lock:

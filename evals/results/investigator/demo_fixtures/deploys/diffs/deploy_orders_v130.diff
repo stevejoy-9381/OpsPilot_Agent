@@ -1,0 +1,5 @@
+--- a/orders/db.py
++++ b/orders/db.py
+@@ -20,2 +20,4 @@
++conn = pool.acquire()
++# Missing release on conflict

@@ -1,0 +1,2 @@
+{"timestamp": "2026-11-25T15:28:28+00:00", "level": "WARN", "message": "Cache bypass audit: executing direct PostgreSQL stock lookup", "attributes": {"event": "cache_bypass", "version": "v1.2.0"}}
+{"timestamp": "2026-11-25T15:29:28+00:00", "level": "ERROR", "message": "Redis cache read timed out after 150ms on stock:item_992; falling back to postgres", "attributes": {"event": "redis_timeout", "dependency": "redis"}}

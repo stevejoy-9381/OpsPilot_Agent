@@ -56,3 +56,16 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_orders_product_id ON orders(product_id);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_deploys_service_deployed_at ON lab.deploys(service, deployed_at);
+
+-- Table for Feature 9 target-side compare-and-set & deduplication
+CREATE TABLE IF NOT EXISTS lab.applied_actions (
+    id BIGSERIAL PRIMARY KEY,
+    action_key VARCHAR(128) NOT NULL UNIQUE,
+    service VARCHAR(64) NOT NULL,
+    action VARCHAR(32) NOT NULL,
+    from_version VARCHAR(64) NOT NULL,
+    to_version VARCHAR(64) NULL,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+    result JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+CREATE INDEX IF NOT EXISTS idx_applied_actions_service_applied_at ON lab.applied_actions(service, applied_at);

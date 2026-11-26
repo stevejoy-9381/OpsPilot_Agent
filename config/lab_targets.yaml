@@ -1,0 +1,32 @@
+# OpsPilot Lab Target Allowlist Registry
+#
+# Authoritative allowlist of lab targets permitted for investigation and
+# remediation proposals.
+#
+# IMPORTANT: Feature 9 (Execution Broker) reads this exact same file as its
+# target allowlist before dispatching any /admin/actions/* request.
+
+targets:
+  - target_id: lab-gateway
+    service: gateway
+    kind: lab_service
+    allowed_actions:
+      - rollback_service
+      - restart_service
+    owner: lab
+
+  - target_id: lab-orders
+    service: orders
+    kind: lab_service
+    allowed_actions:
+      - rollback_service
+      - restart_service
+    owner: lab
+
+  - target_id: lab-inventory
+    service: inventory
+    kind: lab_service
+    allowed_actions:
+      - rollback_service
+      - restart_service
+    owner: lab

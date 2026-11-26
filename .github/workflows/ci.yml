@@ -102,8 +102,25 @@ jobs:
           REDIS_URL: redis://127.0.0.1:6379/0
         run: uv run pytest tests/test_hypothesis_ledger.py tests/test_step_schema_v2.py tests/test_gate_and_outcomes.py tests/test_investigator_workflow_v2.py tests/test_finalize_v2_and_api.py tests/test_v2_loop_deterministic.py -v -m "not live"
 
+      - name: Run Feature 7 plan model, policy validator, persistence, review, and E2E tests (offline + Postgres)
+        env:
+          DATABASE_URL: postgresql+psycopg://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+          TEST_DB_URL: postgresql://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: uv run pytest tests/test_shared_plans.py tests/test_target_registry_and_reader.py tests/test_policy_validator.py tests/test_propose_node.py tests/test_plan_persistence.py tests/test_plan_review.py tests/test_proposal_e2e_deterministic.py -v -m "not lab and not live"
+
+      - name: Run Feature 8 approval, interrupt, lease/fencing, expiry race, and adversarial tests (offline + Postgres)
+        env:
+          DATABASE_URL: postgresql+psycopg://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+          TEST_DB_URL: postgresql://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: uv run pytest tests/test_approval_and_interrupt.py tests/test_approval_service_pg.py tests/approval_adversarial/ -v -m "not lab and not live and not durability"
+
       - name: Run offline investigator demo
         run: uv run python scripts/demo_offline_investigator.py
+
+      - name: Run Feature 8 offline approval demo
+        run: uv run python scripts/demo_feature8.py
 
       - name: Run backend tests
         env:
@@ -112,7 +129,7 @@ jobs:
           POSTGRES_USER: opspilot
           POSTGRES_PASSWORD: opspilot_dev_password
           POSTGRES_DB: opspilot
-        run: uv run pytest -v -m "not lab and not live"
+        run: uv run pytest -v -m "not lab and not live and not durability"
 
       - name: Run offline baseline evaluation harness
         run: uv run python -m evals.baseline_runner --variants b0,b1,b2 --scenarios all --trials 1 --offline

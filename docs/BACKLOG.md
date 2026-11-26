@@ -78,6 +78,14 @@ Deferred ideas, future enhancements, and follow-ups identified during architectu
    - *Idea*: Run 3 trials per scenario (`--trials 3`) with temperature sampling variations or confidence intervals once live Gemini API key quotas are provisioned in the evaluation environment.
    - *Status*: Slated for Feature 13 / pre-release benchmarking.
 
+---
+
+## Post-Feature 8 Roadmap
+
+- [ ] **Feature 9: Isolated Execution Broker (`broker/`)** — Executes `action_executions(status='queued')` with `BrokerTargetCheckPort` pre-flight check, `action_key` idempotency, and `uncertain` reconciliation.
+- [ ] **Feature 10: Independent Outcome Verification (`evals/` & Verifier)** — Post-execution probes and 30s load window, persisting `app.verification_results`.
+- [ ] **Feature 11: Review UI (`apps/web`)** — Fact-driven Review UI for `GET /plans/{id}/review` and `POST /plans/{id}/decisions`.
+
 3. **Final Comparison on 60-Case Benchmark Set (Feature 13)**:
    - *Context*: Development benchmarking was performed against the initial 5 scenarios (S1–S5).
    - *Idea*: Benchmark B0, B1, B2, and the full OpsPilot agent across the complete 60-incident sealed evaluation suite under Feature 13 to prove the agent value gate with statistical significance.
@@ -91,15 +99,17 @@ Deferred ideas, future enhancements, and follow-ups identified during architectu
 - **Explicit Hypothesis Ledger & Contrary-Evidence Gate**: Implemented in `agent/graph/ledger.py`, `agent/graph/steps.py`, and `agent/graph/gate.py` with `confidence_caps.yaml` and `investigator_system_v2.md`.
 - **Follow-ups**: Live Gemini `response_schema` compatibility (`additionalProperties` stripping) and `max_output_tokens` headroom recorded as Candidate v3 in `docs/prompt_changelog.md`.
 
-### Feature 7: Action Proposals, Remediation Planning & Approval Gates
-- **Remediation Plan Synthesis**: Translate confirmed `diagnosed` outcomes (received via `HandoffPort.propose`) into structured action plans using the closed vocabulary in `shared/actions.py` (`rollback_service`, `restart_service`, `no_action`, `escalate`).
-- **Cryptographic Plan Hashing**: Enforce SHA-256 plan hash computation matching `app.action_plans.plan_hash` database invariant triggers.
-- **Human-in-the-Loop Approval Gate**: Status transition `needs_review -> awaiting_approval` preventing execution until explicit cryptographic human sign-off.
-- **Review UI Action Timeline**: Interactive plan diffing, risk assessment badges, and approval/rejection action bar.
-- **Stretch — Multi-Cause Resolution & Sequencing**: Currently two or more concurrent supported causes escalate (`multiple_concurrent_causes`); future work may sequence multi-service remediation plans once single-fault verification is proven.
+### Feature 7: Action Proposals, Policy Validator & Review Payload *(Completed)*
+- **Plan Domain Model & Policy Validator**: Implemented in `shared/plans.py`, `shared/targets.py`, `config/lab_targets.yaml`, `config/policy_table.yaml`, `agent/policy/validator.py`, `agent/graph/nodes/propose.py`, `apps/api/repositories/plan_repository.py`, and `apps/api/services/plan_review.py`.
+- **Follow-ups**: Unblock live `investigator v2` (`FlatAgentStepV2` `additionalProperties` stripping in `GeminiClient`) recorded as Candidate `proposal_v2` in `docs/prompt_changelog.md`.
 
-### Feature 8: Durable Resume, Checkpointing & Recovery Engine
+### Feature 8: Human Approval Transaction & Durable Resume
+- **Approval Transaction**: `POST /plans/{id}/decisions` verifying `submitted_plan_hash == action_plans.plan_hash`, `clock_timestamp() <= expires_at`, `approvals` insertion, and `needs_review -> approved` / `escalated`.
 - **PostgreSQL Checkpointer Integration**: Wire LangGraph `PostgresSaver` into the `checkpoints` schema with connection pooling and RLS.
-- **Durable Pause-and-Resume**: Seamlessly freeze state during human approval or provider backoff and resume execution on worker restart without re-running earlier steps.
 - **Distributed Trace Visualizer**: Add waterfall timeline charts in React UI for visual root cause validation.
-- **Escalation Notification Webhooks**: Dispatch Slack/PagerDuty webhooks upon `provider_error_exhausted`, `budget_exhausted`, or manual human escalation.
+
+### Feature 9: Isolated Execution Broker
+- **Execution Broker**: Separate `broker` service reading `config/lab_targets.yaml`, claiming `approved` plans via `action_executions` idempotency keys, and invoking `/admin/actions/restart` or rollback with a scoped `/admin/actions/*` token.
+
+### Feature 10: Independent Recovery Verifier
+- **Verification Probe**: Post-execution synthetic load + health probe runner transitioning `verifying -> completed` (`resolution="recovered"`) or `escalated`.

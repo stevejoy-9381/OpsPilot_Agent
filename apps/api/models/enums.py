@@ -128,11 +128,14 @@ class ExecutionStatus(str, Enum):
     """Broker action execution lifecycle states."""
 
     QUEUED = "queued"
+    CLAIMED = "claimed"
     DISPATCHED = "dispatched"
     ACKNOWLEDGED = "acknowledged"
     UNCERTAIN = "uncertain"
     RECONCILED = "reconciled"
     FAILED = "failed"
+    REFUSED = "refused"
+    SUCCEEDED = "succeeded"
 
 
 class VerificationVerdict(str, Enum):

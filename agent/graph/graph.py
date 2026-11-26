@@ -27,11 +27,15 @@ from langgraph.graph.state import CompiledStateGraph
 
 from agent.graph.handoff import HandoffPort
 from agent.graph.nodes import (
+    ExecutionPort,
+    await_execution_node,
+    await_review_node,
     call_tool_node,
     conclude_node,
     finalize_node,
     load_context_node,
     plan_step_node,
+    propose_node,
     record_node,
     update_ledger_node,
 )
@@ -100,6 +104,31 @@ def route_after_conclude(state: InvestigationState) -> str:
     return "finalize"
 
 
+def route_after_finalize(state: InvestigationState) -> str:
+    """Routes v2 diagnosed non-false-alarm runs to propose unless a handoff_port already handled them."""
+    if state.get("handoff_result"):
+        return "end"
+    if state.get("schema_version") == "v2":
+        diag = state.get("draft_diagnosis") or {}
+        if diag.get("outcome_kind") == "diagnosed" and diag.get("root_cause_category") != "false_alarm":
+            return "propose"
+    return "end"
+
+
+def route_after_propose(state: InvestigationState) -> str:
+    """Routes to await_review interrupt node when a plan was proposed (needs_review)."""
+    if state.get("status") == "needs_review":
+        return "await_review"
+    return "end"
+
+
+def route_after_await_review(state: InvestigationState) -> str:
+    """Deterministic post-resume routing: approved -> await_execution; else -> end."""
+    if state.get("approval_decision") == "approved":
+        return "await_execution"
+    return "end"
+
+
 def build_investigator_graph(
     llm_client: LLMClient | None = None,
     run_service: RunService | None = None,
@@ -109,6 +138,11 @@ def build_investigator_graph(
     checkpointer_type: str = "memory",
     postgres_conn_string: str | None = None,
     backend: Any = None,
+    target_reader: Any = None,
+    plan_persister: Any = None,
+    db_clock_fn: Any = None,
+    plan_reader: Any = None,
+    execution_port: ExecutionPort | None = None,
 ) -> CompiledStateGraph:
     """Assembles and compiles the OpsPilot Investigator LangGraph StateGraph.
 
@@ -151,6 +185,24 @@ def build_investigator_graph(
             handoff_port=handoff_port,
         )
 
+    def _propose_node(state: InvestigationState) -> dict[str, Any]:
+        if llm_client is None:
+            raise RuntimeError("Cannot execute propose: LLMClient is not provided")
+        return propose_node(
+            state=state,
+            llm_client=llm_client,
+            run_service=run_service,
+            target_reader=target_reader,
+            plan_persister=plan_persister,
+            db_clock_fn=db_clock_fn,
+        )
+
+    def _await_review_node(state: InvestigationState) -> dict[str, Any]:
+        return await_review_node(state=state, plan_reader=plan_reader)
+
+    def _await_execution_node(state: InvestigationState) -> dict[str, Any]:
+        return await_execution_node(state=state, execution_port=execution_port)
+
     # 2. Add nodes to workflow
     workflow.add_node("load_context", _load_context_node)
     workflow.add_node("plan_step", _plan_step_node)
@@ -159,6 +211,9 @@ def build_investigator_graph(
     workflow.add_node("update_ledger", _update_ledger_node)
     workflow.add_node("conclude", _conclude_node)
     workflow.add_node("finalize", _finalize_node)
+    workflow.add_node("propose", _propose_node)
+    workflow.add_node("await_review", _await_review_node)
+    workflow.add_node("await_execution", _await_execution_node)
 
     # 3. Add Edges
     workflow.set_entry_point("load_context")
@@ -186,7 +241,31 @@ def build_investigator_graph(
             "finalize": "finalize",
         },
     )
-    workflow.add_edge("finalize", END)
+    workflow.add_conditional_edges(
+        "finalize",
+        route_after_finalize,
+        {
+            "propose": "propose",
+            "end": END,
+        },
+    )
+    workflow.add_conditional_edges(
+        "propose",
+        route_after_propose,
+        {
+            "await_review": "await_review",
+            "end": END,
+        },
+    )
+    workflow.add_conditional_edges(
+        "await_review",
+        route_after_await_review,
+        {
+            "await_execution": "await_execution",
+            "end": END,
+        },
+    )
+    workflow.add_edge("await_execution", END)
 
     # 4. Resolve checkpointer
     actual_checkpointer: BaseCheckpointSaver
@@ -195,8 +274,15 @@ def build_investigator_graph(
     elif checkpointer_type == "postgres" and postgres_conn_string:
         import psycopg
         from langgraph.checkpoint.postgres import PostgresSaver
-        # Ensure search_path=checkpoints is set
-        conn = psycopg.connect(postgres_conn_string, autocommit=True)
+        from psycopg.rows import dict_row
+
+        # Ensure search_path=checkpoints is set and dict_row/prepare_threshold=0 match PostgresSaver API
+        conn = psycopg.connect(
+            postgres_conn_string,
+            autocommit=True,
+            prepare_threshold=0,
+            row_factory=dict_row,
+        )
         with conn.cursor() as cur:
             cur.execute("SET search_path = checkpoints, public;")
         actual_checkpointer = PostgresSaver(conn)

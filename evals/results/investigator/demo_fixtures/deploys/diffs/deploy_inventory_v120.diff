@@ -1,0 +1,5 @@
+--- a/inventory/cache.py
++++ b/inventory/cache.py
+@@ -10,2 +10,3 @@
++# Cache bypass audit
++return db.query_stock(item_id)

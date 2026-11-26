@@ -12,12 +12,23 @@ from sqlalchemy.engine import Engine
 
 from apps.api.auth.routes import router as auth_router
 from apps.api.domain.errors import (
+    AlreadyDecidedError,
     BudgetExhaustedError,
     ConcurrentModificationError,
+    DecisionConflictError,
     ForbiddenError,
     IdempotencyConflictError,
     IllegalTransitionError,
+    InvalidPlanStatusError,
     NotFoundError,
+    PlanExpiredError,
+    PlanHashMismatchError,
+    PlanNotProposedError,
+    PlanSupersededError,
+    RunNotInReviewError,
+    SeparationOfDutiesError,
+    StaleTargetError,
+    TargetStateUnavailableError,
 )
 from apps.api.logging import get_logger, setup_logging
 from apps.api.routers import incidents_router, plans_router, runs_router
@@ -67,6 +78,17 @@ def check_redis() -> bool:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     setup_logging(settings.log_level)
+    try:
+        from sqlalchemy.orm import Session
+
+        from apps.api.services.approval_service import check_clock_skew
+
+        engine = get_db_engine()
+        with Session(engine) as session:
+            check_clock_skew(session)
+        engine.dispose()
+    except Exception as exc:
+        logger.warning("startup_clock_sanity_check_skipped", error=str(exc))
     logger.info("api_started", log_level=settings.log_level)
     yield
     logger.info("api_stopped")
@@ -121,11 +143,14 @@ async def http_exception_envelope_handler(request: Request, exc: HTTPException) 
         403: "forbidden",
         404: "not_found",
         409: "conflict",
+        410: "gone",
         413: "payload_too_large",
         422: "unprocessable_entity",
+        428: "precondition_required",
         429: "rate_limited",
         500: "internal_error",
         501: "not_implemented",
+        503: "service_unavailable",
     }
     code = code_map.get(exc.status_code, "error")
     msg = str(exc.detail)
@@ -239,6 +264,41 @@ async def idempotency_conflict_error_handler(
             },
         },
     )
+
+
+def _register_domain_error_handler(
+    exc_cls: type[Exception], http_status: int, code: str
+) -> None:
+    @app.exception_handler(exc_cls)
+    async def _handler(request: Request, exc: Any) -> JSONResponse:
+        return JSONResponse(
+            status_code=http_status,
+            content={
+                "detail": exc.message,
+                "error": {
+                    "code": code,
+                    "message": exc.message,
+                    "details": exc.details,
+                },
+            },
+        )
+
+
+_register_domain_error_handler(PlanHashMismatchError, status.HTTP_409_CONFLICT, "plan_hash_mismatch")
+_register_domain_error_handler(PlanExpiredError, status.HTTP_410_GONE, "plan_expired")
+_register_domain_error_handler(StaleTargetError, status.HTTP_409_CONFLICT, "stale_target")
+_register_domain_error_handler(AlreadyDecidedError, status.HTTP_409_CONFLICT, "already_decided")
+_register_domain_error_handler(DecisionConflictError, status.HTTP_409_CONFLICT, "decision_conflict")
+_register_domain_error_handler(PlanSupersededError, status.HTTP_409_CONFLICT, "plan_superseded")
+_register_domain_error_handler(PlanNotProposedError, status.HTTP_409_CONFLICT, "plan_not_proposed")
+_register_domain_error_handler(InvalidPlanStatusError, status.HTTP_409_CONFLICT, "invalid_plan_status")
+_register_domain_error_handler(RunNotInReviewError, status.HTTP_409_CONFLICT, "run_not_in_review")
+_register_domain_error_handler(
+    SeparationOfDutiesError, status.HTTP_403_FORBIDDEN, "separation_of_duties_violation"
+)
+_register_domain_error_handler(
+    TargetStateUnavailableError, status.HTTP_503_SERVICE_UNAVAILABLE, "target_state_unavailable"
+)
 
 
 @app.exception_handler(BudgetExhaustedError)

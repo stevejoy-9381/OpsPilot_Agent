@@ -21,6 +21,8 @@ Modern cloud-native systems face complex production incidents where critical dia
 |                              +-----------------+                              |
 |                              |   FastAPI App   |                              |
 |                              |   (apps/api)    |                              |
+|                              | ApprovalService |                              |
+|                              |   .decide()     |                              |
 |                              +--------+--------+                              |
 |                                       |                                       |
 |           +---------------------------+---------------------------+           |
@@ -30,7 +32,7 @@ Modern cloud-native systems face complex production incidents where critical dia
 |   |   (Port 5432) |                                       |  (Port 6379)  |   |
 |   +---------------+                                       +---------------+   |
 |           ^                                                       ^           |
-|           | Checkpoints & State (FOR UPDATE SKIP LOCKED)          | Cache     |
+|           | Checkpoints & Fenced Leases (FOR UPDATE SKIP LOCKED)  | Rate Limit|
 |   +-------+-----------------------+                               |           |
 |   | Worker Daemon (agent/worker)  |                               |           |
 |   |   LangGraph Investigator Core |                               |           |
@@ -38,7 +40,10 @@ Modern cloud-native systems face complex production incidents where critical dia
 |   |    -> call_tool -> record     |                               |           |
 |   |    -> update_ledger           |                               |           |
 |   |    -> conclude (Gate & Caps)  |                               |           |
-|   |    -> finalize -> handoff]    |                               |           |
+|   |    -> finalize -> propose     |                               |           |
+|   |    -> Policy Validator (P1-12)|                               |           |
+|   |    -> await_review (interrupt)|                               |           |
+|   |    -> await_execution]        |                               |           |
 |   +-------+-----------------------+                               |           |
 |           |                       |                               |           |
 |           v                       v                               |           |
@@ -269,5 +274,16 @@ The baseline ladder measures non-agent performance across three benchmark rungs 
   - Versioned prompt v2 ([agent/prompts/investigator_system_v2.md](agent/prompts/investigator_system_v2.md), hash `ade9f1e5...`) with zero-leakage and changelog governance
   - Finalize v2 persistence with `false_alarm` -> `completed` (`no_action`) handling, ledger summary, and OpenAPI schema updates
   - Comprehensive Feature 6 report ([docs/HYPOTHESIS_REPORT.md](docs/HYPOTHESIS_REPORT.md)) and live v1 vs v2 evaluation report ([docs/investigator_report_v2.md](docs/investigator_report_v2.md))
-- [ ] **Feature 7: Action Proposals, Remediation Planning & Approval Gates** (Action vocabulary planning, cryptographic plan hashes, human approval gate)
-- [ ] **Feature 8: Durable Resume, Checkpointing & Recovery Engine** (LangGraph PostgreSQL checkpoint persistence, pause-and-resume workflows)
+- [x] **Feature 7: Action Proposals, Policy Validator & Review Payload Complete**
+  - Plan domain model ([shared/plans.py](shared/plans.py)): `ProposalInput` (`extra="forbid"`, max 8 evidence IDs, sanitized plain-text note), frozen `ActionPlan`, `PlanStatus`, canonical `plan_hash` shared with [apps/api/models/hashing.py](apps/api/models/hashing.py) and PostgreSQL triggers
+  - Lab target registry ([config/lab_targets.yaml](config/lab_targets.yaml), [shared/targets.py](shared/targets.py)) and read-only `SnapshotTargetReader` / `LiveTargetReader` ([tools/read/target_state.py](tools/read/target_state.py))
+  - Deterministic Policy Validator ([agent/policy/validator.py](agent/policy/validator.py)) and data-driven action table ([config/policy_table.yaml](config/policy_table.yaml)) enforcing `P1`–`P12` and failing closed (`policy_unavailable`)
+  - Proposal graph node ([agent/graph/nodes/propose.py](agent/graph/nodes/propose.py)) and prompt ([agent/prompts/proposal_v1.md](agent/prompts/proposal_v1.md), hash `073d2e52...`) wired into `finalize -> propose -> needs_review`
+  - Atomic `PlanRepository.create()`, DB-clock `expire_overdue_plans()`, `GET /plans/{id}/review` fact-driven payload ([apps/api/services/plan_review.py](apps/api/services/plan_review.py)), and Feature 7 reports ([docs/PROPOSAL_REPORT.md](docs/PROPOSAL_REPORT.md), [docs/proposal_report_v1.md](docs/proposal_report_v1.md))
+- [x] **Feature 8: Human Approval Transaction & Durable Resume Complete**
+  - Design & implementation reports ([docs/approval_design.md](docs/approval_design.md), [docs/APPROVAL_REPORT.md](docs/APPROVAL_REPORT.md), [docs/demo_feature8_transcript.md](docs/demo_feature8_transcript.md))
+  - Atomic `ApprovalService.decide()` ([apps/api/services/approval_service.py](apps/api/services/approval_service.py)): session-only `UserPrincipal`, pre-transaction `TargetStateReader` freshness check, `FOR UPDATE` locking, constant-time `plan_hash` + recompute integrity check, DB-clock expiry (`410`), stale-target refusal (`409`), `Idempotency-Key` replay/conflict, and deterministic `action_key`
+  - `POST /plans/{id}/decisions` and `GET /plans/{id}/decision` with `If-Match`, `Idempotency-Key`, CSRF, per-reviewer Redis rate limiting, redacted audit logs, and OpenAPI error examples
+  - Durable `await_review` LangGraph interrupt + `Command(resume=...)` driver, `await_execution` stub (`ExecutionPort`), killable workers with `lease_token` fencing (`FencedRunService`), background heartbeats, expiry sweeper, and `SIGTERM` graceful shutdown
+  - Subprocess durability harness (`tests/durability/`), 10-case adversarial suite (`tests/approval_adversarial/`), and extended `scripts/db_invariants.py` (Checks 1–9)
+- See [BACKLOG.md](BACKLOG.md) for Features 9–11 (Broker, Verifier, Review UI).

@@ -1,4 +1,4 @@
-.PHONY: install lint typecheck test migrate run-api up down reset db-up db-migrate db-reset db-seed test-backbone web-install web-dev web-test web-lint lab-up lab-down lab-smoke lab-lean codespace-setup worker run-offline-demo test-agent test-hypothesis
+.PHONY: install lint typecheck test migrate run-api up down reset db-up db-migrate db-reset db-seed test-backbone web-install web-dev web-test web-lint lab-up lab-down lab-smoke lab-lean codespace-setup worker run-offline-demo test-agent test-hypothesis test-proposal test-approval test-durability demo-feature8
 
 install:
 	uv sync --extra dev
@@ -88,6 +88,18 @@ test-agent:
 
 test-hypothesis:
 	uv run pytest tests/test_hypothesis_ledger.py tests/test_step_schema_v2.py tests/test_gate_and_outcomes.py tests/test_investigator_workflow_v2.py tests/test_finalize_v2_and_api.py tests/test_v2_loop_deterministic.py -v -m "not live"
+
+test-proposal:
+	uv run pytest tests/test_shared_plans.py tests/test_target_registry_and_reader.py tests/test_policy_validator.py tests/test_propose_node.py tests/test_plan_persistence.py tests/test_plan_review.py tests/test_proposal_e2e_deterministic.py -v -m "not lab and not live"
+
+test-approval:
+	uv run pytest tests/test_approval_and_interrupt.py tests/test_approval_service_pg.py tests/approval_adversarial/ -v -m "not lab and not live and not durability"
+
+test-durability:
+	uv run pytest tests/durability/ -v -m durability
+
+demo-feature8:
+	uv run python scripts/demo_feature8.py
 
 codespace-setup: install web-install
 

@@ -12,9 +12,10 @@ from __future__ import annotations
 import datetime
 import os
 import uuid
-from starlette.testclient import TestClient
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from starlette.testclient import TestClient
 
 from apps.api.auth.dependencies import SESSION_COOKIE_NAME, get_db_session
 from apps.api.auth.passwords import hash_password
@@ -154,7 +155,7 @@ def record_session():
 
         last_received_seq = 2
         print("-" * 80)
-        print(f"[CLIENT] Simulating connection drop (network partition / client disconnect).")
+        print("[CLIENT] Simulating connection drop (network partition / client disconnect).")
         print(f"[CLIENT] Last observed event ID was: {last_received_seq}")
         print()
 
