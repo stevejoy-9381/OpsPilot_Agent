@@ -208,7 +208,7 @@ def _seed_needs_review_run(
             expected_version=expected_version,
             rollback_to_version=rollback_to_version,
             rationale_evidence_ids=[ev_id],
-            model_note=f"Automated {action} plan for {case_id}",
+            notes=f"Automated {action} plan for {case_id}",
             status="proposed",
             expires_at=expires_at,
             plan_hash=p_hash,
