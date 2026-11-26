@@ -581,7 +581,7 @@ def test_live_e2e_orders_rollback_and_deploys_row(monkeypatch: pytest.MonkeyPatc
         spec = registry.get_by_target_id("lab-orders")
         assert spec is not None
         resp = httpx.post(
-            f"{spec.admin_base_url}/admin/deploy",
+            f"http://{spec.service}:8000/admin/deploy",
             headers={"X-Lab-Admin-Token": admin_token.get_secret_value()},
             json={"version": "v1.3.0", "actor": "e2e_setup"},
             timeout=5.0,
