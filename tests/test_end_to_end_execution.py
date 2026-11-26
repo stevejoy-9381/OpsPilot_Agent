@@ -333,6 +333,7 @@ def test_offline_e2e_s1_s3_s5_and_audit_trail(monkeypatch: pytest.MonkeyPatch) -
                 "Idempotency-Key": f"idem-s1-{uuid4().hex[:8]}",
                 "If-Match": s1_hash,
                 "X-CSRF-Token": "test-csrf",
+                "X-Requested-With": "XMLHttpRequest",
             },
             cookies={SESSION_COOKIE_NAME: token, "opspilot_csrf": "test-csrf"},
             json={
@@ -430,6 +431,7 @@ def test_offline_e2e_s1_s3_s5_and_audit_trail(monkeypatch: pytest.MonkeyPatch) -
                 "Idempotency-Key": f"idem-s3-{uuid4().hex[:8]}",
                 "If-Match": s3_hash,
                 "X-CSRF-Token": "test-csrf",
+                "X-Requested-With": "XMLHttpRequest",
             },
             cookies={SESSION_COOKIE_NAME: token, "opspilot_csrf": "test-csrf"},
             json={
@@ -605,6 +607,7 @@ def test_live_e2e_orders_rollback_and_deploys_row(monkeypatch: pytest.MonkeyPatc
                 "Idempotency-Key": f"idem-live-{uuid4().hex[:8]}",
                 "If-Match": p_hash,
                 "X-CSRF-Token": "test-csrf",
+                "X-Requested-With": "XMLHttpRequest",
             },
             cookies={SESSION_COOKIE_NAME: token, "opspilot_csrf": "test-csrf"},
             json={
