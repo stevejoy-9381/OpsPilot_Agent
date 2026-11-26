@@ -733,6 +733,10 @@ class BrokerService:
                 )
 
                 if isinstance(result, Refused):
+                    try:
+                        session.execute(text("SELECT 1"))
+                    except Exception:
+                        session.rollback()
                     execution = session.scalar(
                         select(ActionExecutionModel).where(ActionExecutionModel.id == execution_id)
                     )
