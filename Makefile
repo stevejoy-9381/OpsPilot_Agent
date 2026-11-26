@@ -18,7 +18,11 @@ migrate:
 db-up:
 	docker compose --env-file .env -f infra/docker-compose.yml --profile core up -d postgres
 	@echo "Waiting for postgres to become healthy..."
-	@until docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres pg_isready -U opspilot -d opspilot > /dev/null 2>&1; do sleep 1; done
+	@for i in $$(seq 1 120); do \
+		if docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres pg_isready -U opspilot -d opspilot > /dev/null 2>&1; then break; fi; \
+		if [ $$i -eq 120 ]; then echo "Timed out waiting for postgres"; docker compose --env-file .env -f infra/docker-compose.yml logs --tail 80 postgres; exit 1; fi; \
+		sleep 1; \
+	done
 	@echo "Postgres is ready."
 
 db-migrate:
@@ -41,7 +45,11 @@ run-api:
 up:
 	docker compose --env-file .env -f infra/docker-compose.yml --profile core up -d
 	@echo "Waiting for postgres to become healthy..."
-	@until docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres pg_isready -U opspilot -d opspilot > /dev/null 2>&1; do sleep 1; done
+	@for i in $$(seq 1 120); do \
+		if docker compose --env-file .env -f infra/docker-compose.yml exec -T postgres pg_isready -U opspilot -d opspilot > /dev/null 2>&1; then break; fi; \
+		if [ $$i -eq 120 ]; then echo "Timed out waiting for postgres"; docker compose --env-file .env -f infra/docker-compose.yml logs --tail 80 postgres; exit 1; fi; \
+		sleep 1; \
+	done
 	uv run alembic upgrade head
 	uv run uvicorn apps.api.main:app --host 0.0.0.0 --port 8000
 
@@ -54,21 +62,37 @@ reset:
 lab-up:
 	docker compose --env-file .env -f infra/docker-compose.lab.yml --profile lab up -d --build
 	@echo "Waiting for lab-postgres to become healthy..."
-	@until docker compose --env-file .env -f infra/docker-compose.lab.yml exec -T lab-postgres pg_isready -U lab_admin -d lab > /dev/null 2>&1; do sleep 1; done
+	@for i in $$(seq 1 120); do \
+		if docker compose --env-file .env -f infra/docker-compose.lab.yml exec -T lab-postgres pg_isready -U lab_admin -d lab > /dev/null 2>&1; then break; fi; \
+		if [ $$i -eq 120 ]; then echo "Timed out waiting for lab-postgres"; docker compose --env-file .env -f infra/docker-compose.lab.yml logs --tail 80 lab-postgres; exit 1; fi; \
+		sleep 1; \
+	done
 	@echo "Seeding lab database..."
 	@docker compose --env-file .env -f infra/docker-compose.lab.yml exec -T inventory uv run python lab/seed/seed.py --database-url "postgresql://lab_admin:lab-postgres-local-pw@lab-postgres:5432/lab" --seed-history
 	@echo "Waiting for gateway..."
-	@until curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; do sleep 1; done
+	@for i in $$(seq 1 120); do \
+		if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then break; fi; \
+		if [ $$i -eq 120 ]; then echo "Timed out waiting for gateway"; docker compose --env-file .env -f infra/docker-compose.lab.yml logs --tail 80 gateway; exit 1; fi; \
+		sleep 1; \
+	done
 	@echo "Lab stack is ready at http://127.0.0.1:8080."
 
 lab-lean:
 	docker compose --env-file .env -f infra/docker-compose.lab.yml --profile lab up -d
 	@echo "Waiting for lab-postgres to become healthy..."
-	@until docker compose --env-file .env -f infra/docker-compose.lab.yml exec -T lab-postgres pg_isready -U lab_admin -d lab > /dev/null 2>&1; do sleep 1; done
+	@for i in $$(seq 1 120); do \
+		if docker compose --env-file .env -f infra/docker-compose.lab.yml exec -T lab-postgres pg_isready -U lab_admin -d lab > /dev/null 2>&1; then break; fi; \
+		if [ $$i -eq 120 ]; then echo "Timed out waiting for lab-postgres"; docker compose --env-file .env -f infra/docker-compose.lab.yml logs --tail 80 lab-postgres; exit 1; fi; \
+		sleep 1; \
+	done
 	@echo "Seeding lab database..."
 	@docker compose --env-file .env -f infra/docker-compose.lab.yml exec -T inventory uv run python lab/seed/seed.py --database-url "postgresql://lab_admin:lab-postgres-local-pw@lab-postgres:5432/lab" --seed-history
 	@echo "Waiting for gateway..."
-	@until curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; do sleep 1; done
+	@for i in $$(seq 1 120); do \
+		if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then break; fi; \
+		if [ $$i -eq 120 ]; then echo "Timed out waiting for gateway"; docker compose --env-file .env -f infra/docker-compose.lab.yml logs --tail 80 gateway; exit 1; fi; \
+		sleep 1; \
+	done
 	@echo "Lean lab stack is ready at http://127.0.0.1:8080."
 
 lab-down:
@@ -103,6 +127,14 @@ demo-feature8:
 
 broker-up:
 	docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.lab.yml -f infra/docker-compose.broker.yml --profile core --profile lab --profile broker up -d --build broker
+	@echo "Waiting for broker to become healthy..."
+	@for i in $$(seq 1 120); do \
+		status=$$(docker inspect -f '{{.State.Health.Status}}' opspilot-broker-1 2>/dev/null || echo "missing"); \
+		if [ "$$status" = "healthy" ]; then break; fi; \
+		if [ $$i -eq 120 ]; then echo "Timed out waiting for broker (status=$$status)"; docker logs --tail 80 opspilot-broker-1; exit 1; fi; \
+		sleep 1; \
+	done
+	@echo "Broker is healthy."
 
 broker-logs:
 	docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.lab.yml -f infra/docker-compose.broker.yml logs -f broker
