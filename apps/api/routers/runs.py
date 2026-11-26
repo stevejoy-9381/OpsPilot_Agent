@@ -42,6 +42,8 @@ from apps.api.routers.schemas import (
     CreateRunRequest,
     DiagnosisSummary,
     EvidenceResponse,
+    ExecutionAuditEntry,
+    ExecutionSummary,
     HypothesisSummary,
     RunDetailResponse,
     RunEventListResponse,
@@ -340,6 +342,47 @@ def get_run(
         else None
     )
 
+    exec_row = repo.get_run_execution(ctx, id)
+    exec_summary: ExecutionSummary | None = None
+    if exec_row is not None:
+        exec_events = repo.get_run_execution_events(ctx, id)
+        audit_trail = [
+            ExecutionAuditEntry(
+                time=ev.created_at,
+                who=ev.actor,
+                what=ev.type,
+                evidence=sanitize_event_payload(ev.payload or {}),
+            )
+            for ev in exec_events
+            if ev.execution_id == exec_row.id
+        ]
+        before_ver = (
+            (exec_row.target_state_before or {}).get("current_version")
+            if isinstance(exec_row.target_state_before, dict)
+            else None
+        )
+        after_ver = (
+            (exec_row.target_state_after or {}).get("current_version")
+            if isinstance(exec_row.target_state_after, dict)
+            else None
+        )
+        exec_summary = ExecutionSummary(
+            id=exec_row.id,
+            plan_id=exec_row.plan_id,
+            status=exec_row.status,
+            attempts=exec_row.attempts,
+            refusal_code=exec_row.refusal_code,
+            target_id=exec_row.target_id,
+            target_before_version=before_ver,
+            target_after_version=after_ver,
+            created_at=exec_row.created_at,
+            dispatched_at=exec_row.dispatched_at,
+            acknowledged_at=exec_row.acknowledged_at,
+            reconciled_at=exec_row.reconciled_at,
+            completed_at=exec_row.completed_at,
+            audit_trail=audit_trail,
+        )
+
     return RunDetailResponse(
         id=run.id,
         tenant_id=run.tenant_id,
@@ -357,6 +400,12 @@ def get_run(
         diagnosis=diag_summary,
         ledger_summary=diag.ledger_summary if diag else None,
         gate_rejection_count=diag.gate_rejection_count if diag else 0,
+        execution=exec_summary,
+        execution_status=exec_summary.status if exec_summary else None,
+        execution_attempts=exec_summary.attempts if exec_summary else None,
+        execution_refusal_code=exec_summary.refusal_code if exec_summary else None,
+        target_before_version=exec_summary.target_before_version if exec_summary else None,
+        target_after_version=exec_summary.target_after_version if exec_summary else None,
         created_at=run.created_at,
         updated_at=run.updated_at,
         finished_at=run.finished_at,
@@ -618,25 +667,61 @@ async def get_run_events(
 
     # Mode 1: Polling mode (plain JSON list)
     if "text/event-stream" not in accept_header:
-        events = repo.get_run_events(ctx, id, after_seq=after_seq, limit=limit + 1)
-        has_more = len(events) > limit
-        items = events[:limit]
-        last_seq = items[-1].seq if items else after_seq
+        run_events = repo.get_run_events(ctx, id, after_seq=after_seq)
+        after_created_at = None
+        if after_seq > 0:
+            prev_run_events = repo.get_run_events(ctx, id, after_seq=after_seq - 1, limit=1)
+            if prev_run_events and prev_run_events[0].seq == after_seq:
+                after_created_at = prev_run_events[0].created_at
+        exec_events = repo.get_run_execution_events(ctx, id, after_created_at=after_created_at)
 
-        sanitized_items = [
-            RunEventResponse(
-                id=e.id,
-                run_id=e.run_id,
-                tenant_id=e.tenant_id,
-                seq=e.seq,
-                type=e.type,
-                actor=e.actor,
-                payload=sanitize_event_payload(e.payload),
-                created_at=e.created_at,
+        combined: list[tuple[Any, int, int, RunEventResponse]] = []
+        for e in run_events:
+            combined.append(
+                (
+                    e.created_at,
+                    0,
+                    e.seq,
+                    RunEventResponse(
+                        id=e.id,
+                        run_id=e.run_id,
+                        tenant_id=e.tenant_id,
+                        seq=e.seq,
+                        type=e.type,
+                        actor=e.actor,
+                        payload=sanitize_event_payload(e.payload),
+                        created_at=e.created_at,
+                        source="run",
+                        execution_id=None,
+                    ),
+                )
             )
-            for e in items
-        ]
-        return RunEventListResponse(items=sanitized_items, last_seq=last_seq, has_more=has_more)
+        for ev in exec_events:
+            combined.append(
+                (
+                    ev.created_at,
+                    1,
+                    ev.seq,
+                    RunEventResponse(
+                        id=ev.id,
+                        run_id=id,
+                        tenant_id=ev.tenant_id,
+                        seq=ev.seq,
+                        type=ev.type,
+                        actor=ev.actor,
+                        payload=sanitize_event_payload(ev.payload),
+                        created_at=ev.created_at,
+                        source="execution",
+                        execution_id=ev.execution_id,
+                    ),
+                )
+            )
+        combined.sort(key=lambda item: (item[0], item[1], item[2]))
+        has_more = len(combined) > limit
+        items = [item[3] for item in combined[:limit]]
+        run_seqs = [item.seq for item in items if item.source == "run"]
+        last_seq = run_seqs[-1] if run_seqs else after_seq
+        return RunEventListResponse(items=items, last_seq=last_seq, has_more=has_more)
 
     # Mode 2: Server-Sent Events (SSE stream)
     resume_seq = after_seq

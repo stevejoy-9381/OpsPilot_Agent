@@ -737,12 +737,31 @@ class BrokerService:
                         select(ActionExecutionModel).where(ActionExecutionModel.id == execution_id)
                     )
                     if execution is not None:
+                        exec_repo.append_custom_event(
+                            execution_id,
+                            execution.tenant_id,
+                            "prechecks_completed",
+                            {
+                                "passed": False,
+                                "refusal_code": result.code,
+                                "checks": [c.to_dict() for c in result.checks],
+                            },
+                        )
                         self._handle_refusal(session, exec_repo, execution, lease_token, result)
                     session.commit()
                     return "refused"
 
                 assert isinstance(result, Allowed)
                 allowed = result
+                exec_repo.append_custom_event(
+                    execution_id,
+                    allowed.execution.tenant_id,
+                    "prechecks_completed",
+                    {
+                        "passed": True,
+                        "checks": [c.to_dict() for c in allowed.checks],
+                    },
+                )
                 tenant_id = allowed.execution.tenant_id
                 run_id = allowed.run.id
                 plan_id = allowed.plan.id

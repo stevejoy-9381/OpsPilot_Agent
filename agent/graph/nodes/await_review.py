@@ -26,7 +26,7 @@ from agent.graph.state import InvestigationState
 
 @runtime_checkable
 class ExecutionPort(Protocol):
-    """TODO (Feature 9): Port for handing off an approved plan to the Execution Broker."""
+    """Port for handing off an approved plan to the Execution Broker via the DB queue."""
 
     def handoff_approved_plan(
         self,
@@ -35,8 +35,49 @@ class ExecutionPort(Protocol):
         plan_id: str,
         action_execution_id: str | None,
     ) -> dict[str, Any]:
-        """Hands off an approved plan to the broker/verifier pipeline."""
+        """Verifies/hands off an approved plan via the DB-backed execution queue."""
         ...
+
+
+class DatabaseExecutionPort:
+    """DB-only ExecutionPort: confirms the queued action_execution row exists; never calls broker."""
+
+    def __init__(self, session: Any) -> None:
+        self.session = session
+
+    def handoff_approved_plan(
+        self,
+        *,
+        run_id: str,
+        plan_id: str,
+        action_execution_id: str | None,
+    ) -> dict[str, Any]:
+        from uuid import UUID
+
+        from sqlalchemy import select
+
+        from apps.api.models.tables import ActionExecutionModel
+
+        plan_uuid = UUID(str(plan_id))
+        stmt = select(ActionExecutionModel).where(ActionExecutionModel.plan_id == plan_uuid)
+        if action_execution_id:
+            stmt = stmt.where(ActionExecutionModel.id == UUID(str(action_execution_id)))
+        exec_row = self.session.scalar(stmt)
+        if exec_row is None:
+            return {
+                "handoff_mode": "db_queue",
+                "run_id": str(run_id),
+                "plan_id": str(plan_id),
+                "action_execution_id": action_execution_id,
+                "status": "missing",
+            }
+        return {
+            "handoff_mode": "db_queue",
+            "run_id": str(run_id),
+            "plan_id": str(plan_id),
+            "action_execution_id": str(exec_row.id),
+            "status": exec_row.status,
+        }
 
 
 def await_review_node(
@@ -102,7 +143,7 @@ def await_execution_node(
     *,
     execution_port: ExecutionPort | None = None,
 ) -> dict[str, Any]:
-    """Feature 9/10 stub: leaves approved run in `approved` status and ends cleanly."""
+    """Ends the worker graph cleanly after approval; broker drives execution via the DB queue."""
     if execution_port is not None:
         execution_port.handoff_approved_plan(
             run_id=str(state.get("run_id", "")),

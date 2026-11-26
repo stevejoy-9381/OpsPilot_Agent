@@ -170,6 +170,34 @@ class DiagnosisSummary(BaseModel):
     created_at: datetime
 
 
+class ExecutionAuditEntry(BaseModel):
+    """Reviewer-visible audit trail entry for an execution."""
+
+    time: datetime
+    who: str
+    what: str
+    evidence: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExecutionSummary(BaseModel):
+    """Broker execution summary exposed on GET /runs/{id}."""
+
+    id: UUID
+    plan_id: UUID
+    status: str
+    attempts: int = 0
+    refusal_code: str | None = None
+    target_id: str | None = None
+    target_before_version: str | None = None
+    target_after_version: str | None = None
+    created_at: datetime
+    dispatched_at: datetime | None = None
+    acknowledged_at: datetime | None = None
+    reconciled_at: datetime | None = None
+    completed_at: datetime | None = None
+    audit_trail: list[ExecutionAuditEntry] = Field(default_factory=list)
+
+
 class RunDetailResponse(BaseModel):
     """Detailed representation of an investigation run including all linked aggregates."""
 
@@ -195,6 +223,12 @@ class RunDetailResponse(BaseModel):
         default=0,
         description="Number of contrary-evidence gate rejections during the run",
     )
+    execution: ExecutionSummary | None = None
+    execution_status: str | None = None
+    execution_attempts: int | None = None
+    execution_refusal_code: str | None = None
+    target_before_version: str | None = None
+    target_after_version: str | None = None
     created_at: datetime
     updated_at: datetime
     finished_at: datetime | None = None
@@ -440,7 +474,7 @@ class PlanDecisionReadResponse(BaseModel):
 
 
 class RunEventResponse(BaseModel):
-    """Representation of an emitted audit run event."""
+    """Representation of an emitted audit run or execution event."""
 
     id: int
     run_id: UUID
@@ -450,6 +484,8 @@ class RunEventResponse(BaseModel):
     actor: str
     payload: dict[str, Any]
     created_at: datetime
+    source: str = "run"
+    execution_id: UUID | None = None
 
 
 class RunEventListResponse(BaseModel):

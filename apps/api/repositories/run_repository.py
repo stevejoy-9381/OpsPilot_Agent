@@ -24,9 +24,11 @@ from apps.api.domain.errors import (
     NotFoundError,
 )
 from apps.api.models.tables import (
+    ActionExecutionModel,
     ActionPlanModel,
     AllowedTransitionModel,
     DiagnosisModel,
+    ExecutionEventModel,
     HypothesisModel,
     ObservationModel,
     RunEventModel,
@@ -483,6 +485,47 @@ class RunRepository(BaseRepository):
         if limit is not None:
             stmt = stmt.limit(limit)
 
+        return list(self.session.scalars(stmt).all())
+
+    def get_run_execution(
+        self, ctx: TenantContext, run_id: UUID
+    ) -> ActionExecutionModel | None:
+        """Returns the latest ActionExecutionModel associated with run_id within tenant."""
+        self.set_tenant_context(ctx)
+        stmt = (
+            select(ActionExecutionModel)
+            .join(ActionPlanModel, ActionExecutionModel.plan_id == ActionPlanModel.id)
+            .where(
+                ActionPlanModel.run_id == run_id,
+                ActionPlanModel.tenant_id == ctx.tenant_id,
+                ActionExecutionModel.tenant_id == ctx.tenant_id,
+            )
+            .order_by(ActionExecutionModel.created_at.desc())
+            .limit(1)
+        )
+        return self.session.scalar(stmt)
+
+    def get_run_execution_events(
+        self,
+        ctx: TenantContext,
+        run_id: UUID,
+        after_created_at: datetime | None = None,
+    ) -> list[ExecutionEventModel]:
+        """Retrieves ordered execution events for all executions belonging to run_id."""
+        self.set_tenant_context(ctx)
+        stmt = (
+            select(ExecutionEventModel)
+            .join(ActionExecutionModel, ExecutionEventModel.execution_id == ActionExecutionModel.id)
+            .join(ActionPlanModel, ActionExecutionModel.plan_id == ActionPlanModel.id)
+            .where(
+                ActionPlanModel.run_id == run_id,
+                ActionPlanModel.tenant_id == ctx.tenant_id,
+                ExecutionEventModel.tenant_id == ctx.tenant_id,
+            )
+        )
+        if after_created_at is not None:
+            stmt = stmt.where(ExecutionEventModel.created_at > after_created_at)
+        stmt = stmt.order_by(ExecutionEventModel.created_at.asc(), ExecutionEventModel.seq.asc())
         return list(self.session.scalars(stmt).all())
 
 

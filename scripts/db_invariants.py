@@ -182,13 +182,17 @@ def check_invariants() -> int:
             # ---------------------------------------------------------------
             # Check 6: Executions without an approved/executed plan
             # ---------------------------------------------------------------
-            print("[CHECK 6] Action executions without an approved/executed plan")
+            print("[CHECK 6] Action executions without an approved/executed plan or approval row")
             cur.execute(
                 """
                 SELECT e.id AS exec_id, e.plan_id, p.status AS plan_status
                 FROM app.action_executions e
                 JOIN app.action_plans p ON e.plan_id = p.id
-                WHERE p.status NOT IN ('approved', 'executed');
+                WHERE p.status NOT IN ('approved', 'executed')
+                   OR NOT EXISTS (
+                       SELECT 1 FROM app.approvals a
+                       WHERE a.plan_id = p.id AND a.decision = 'approve'
+                   );
                 """
             )
             unapproved_execs = cur.fetchall()
@@ -262,6 +266,87 @@ def check_invariants() -> int:
             else:
                 print("  PASSED: 0 runs with multiple active proposed plans.")
             print()
+
+            # ---------------------------------------------------------------
+            # Check 10: Executions in dispatched state older than the deadline
+            # ---------------------------------------------------------------
+            deadline_seconds = int(os.environ.get("BROKER_RECONCILE_DEADLINE_SECONDS", "60"))
+            print(f"[CHECK 10] Executions in dispatched state older than {deadline_seconds}s")
+            cur.execute(
+                """
+                SELECT e.id AS exec_id, e.plan_id, e.dispatched_at
+                FROM app.action_executions e
+                WHERE e.status = 'dispatched'
+                  AND (
+                      e.dispatched_at IS NULL
+                      OR e.dispatched_at < clock_timestamp() - make_interval(secs => %s)
+                  );
+                """,
+                (deadline_seconds,),
+            )
+            stale_dispatched = cur.fetchall()
+            if stale_dispatched:
+                violations_found += len(stale_dispatched)
+                print(f"  FAILED: Found {len(stale_dispatched)} dispatched executions older than deadline")
+            else:
+                print("  PASSED: 0 stale dispatched executions.")
+            print()
+
+            # ---------------------------------------------------------------
+            # Check 11: Two or more non-terminal executions for one target
+            # ---------------------------------------------------------------
+            print("[CHECK 11] Targets with two or more non-terminal executions")
+            cur.execute(
+                """
+                SELECT COALESCE(e.target_id, p.target_id) AS target_id, COUNT(*) AS active_count
+                FROM app.action_executions e
+                JOIN app.action_plans p ON e.plan_id = p.id
+                WHERE e.status IN ('queued', 'claimed', 'dispatched', 'uncertain')
+                GROUP BY COALESCE(e.target_id, p.target_id)
+                HAVING COUNT(*) > 1;
+                """
+            )
+            multi_target_execs = cur.fetchall()
+            if multi_target_execs:
+                violations_found += len(multi_target_execs)
+                print(f"  FAILED: Found {len(multi_target_execs)} targets with >= 2 non-terminal executions")
+            else:
+                print("  PASSED: 0 targets with multiple non-terminal executions.")
+            print()
+
+            # ---------------------------------------------------------------
+            # Check 12 (live mode only): Acknowledged executions without lab.applied_actions row
+            # ---------------------------------------------------------------
+            live_mode = "--live" in sys.argv or bool(os.environ.get("LAB_DATABASE_URL"))
+            if live_mode:
+                lab_db_url = os.environ.get(
+                    "LAB_DATABASE_URL",
+                    "postgresql://lab_admin:lab-postgres-local-pw@127.0.0.1:5432/lab",
+                ).replace("+psycopg", "")
+                print("[CHECK 12] Live mode: Acknowledged executions without lab.applied_actions row")
+                cur.execute(
+                    """
+                    SELECT id AS exec_id, action_key, status
+                    FROM app.action_executions
+                    WHERE status IN ('acknowledged', 'reconciled', 'succeeded');
+                    """
+                )
+                acked_execs = cur.fetchall()
+                with psycopg.connect(lab_db_url, row_factory=dict_row) as lab_conn:
+                    with lab_conn.cursor() as lab_cur:
+                        lab_cur.execute("SELECT action_key FROM lab.applied_actions;")
+                        applied_keys = {row["action_key"] for row in lab_cur.fetchall()}
+                missing_applied = [e for e in acked_execs if e["action_key"] not in applied_keys]
+                if missing_applied:
+                    violations_found += len(missing_applied)
+                    print(
+                        f"  FAILED: Found {len(missing_applied)} acknowledged executions missing from lab.applied_actions"
+                    )
+                else:
+                    print(
+                        f"  PASSED: All {len(acked_execs)} acknowledged executions present in lab.applied_actions."
+                    )
+                print()
 
     print("=" * 80)
     if violations_found == 0:

@@ -9,9 +9,10 @@ with Refused(code="policy_unavailable").
 from __future__ import annotations
 
 import hmac
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, text
@@ -37,6 +38,24 @@ from shared.targets import (
 
 
 @dataclass(frozen=True)
+class PrecheckRecord:
+    """Structured record for a single deterministic broker check (B1-B10)."""
+
+    rule_id: str
+    code: str
+    passed: bool
+    inputs: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "rule_id": self.rule_id,
+            "code": self.code,
+            "passed": self.passed,
+            "inputs": dict(self.inputs),
+        }
+
+
+@dataclass(frozen=True)
 class Refused:
     """Typed refusal returned by pre-dispatch checks B1-B10."""
 
@@ -45,6 +64,7 @@ class Refused:
     plan_id: UUID | None = None
     run_id: UUID | None = None
     tenant_id: UUID | None = None
+    checks: tuple[PrecheckRecord, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -56,6 +76,7 @@ class Allowed:
     run: RunModel
     target_spec: TargetSpec
     target_state: TargetState
+    checks: tuple[PrecheckRecord, ...] = ()
 
 
 PrecheckResult = Allowed | Refused
@@ -358,48 +379,212 @@ def run_prechecks(
     target_registry: TargetRegistry | Path | None = None,
 ) -> PrecheckResult:
     """Runs B1-B10 in strict order, failing closed with Refused('policy_unavailable') on error."""
+    records: list[PrecheckRecord] = []
     try:
         reg = _safe_load_registry(target_registry)
 
         b1_res = check_b1(session, execution_id)
         if isinstance(b1_res, Refused):
-            return b1_res
+            records.append(
+                PrecheckRecord("B1", b1_res.code, False, {"execution_id": str(execution_id)})
+            )
+            return replace(b1_res, checks=tuple(records))
         execution, plan = b1_res
+        records.append(
+            PrecheckRecord(
+                "B1",
+                "execution_and_plan_exist",
+                True,
+                {
+                    "execution_id": str(execution.id),
+                    "plan_id": str(plan.id),
+                    "tenant_id": str(execution.tenant_id),
+                },
+            )
+        )
 
         if (b2_err := check_b2(plan)) is not None:
-            return b2_err
+            records.append(
+                PrecheckRecord(
+                    "B2",
+                    b2_err.code,
+                    False,
+                    {"plan_id": str(plan.id), "plan_status": plan.status},
+                )
+            )
+            return replace(b2_err, checks=tuple(records))
+        records.append(
+            PrecheckRecord(
+                "B2",
+                "plan_approved",
+                True,
+                {"plan_id": str(plan.id), "plan_status": plan.status},
+            )
+        )
 
         b3_res = check_b3(session, plan)
         if isinstance(b3_res, Refused):
-            return b3_res
+            records.append(
+                PrecheckRecord("B3", b3_res.code, False, {"plan_id": str(plan.id)})
+            )
+            return replace(b3_res, checks=tuple(records))
         approval = b3_res
+        records.append(
+            PrecheckRecord(
+                "B3",
+                "human_approval_valid",
+                True,
+                {
+                    "approval_id": str(approval.id),
+                    "reviewer_id": str(approval.reviewer_id),
+                    "decision": approval.decision,
+                },
+            )
+        )
 
         if (b4_err := check_b4(plan, approval)) is not None:
-            return b4_err
+            records.append(
+                PrecheckRecord(
+                    "B4",
+                    b4_err.code,
+                    False,
+                    {"plan_hash": plan.plan_hash, "submitted_plan_hash": approval.submitted_plan_hash},
+                )
+            )
+            return replace(b4_err, checks=tuple(records))
+        records.append(
+            PrecheckRecord(
+                "B4",
+                "plan_hash_verified",
+                True,
+                {"plan_hash": plan.plan_hash, "submitted_plan_hash": approval.submitted_plan_hash},
+            )
+        )
 
         if (b5_err := check_b5(plan, now_from_db)) is not None:
-            return b5_err
+            records.append(
+                PrecheckRecord(
+                    "B5",
+                    b5_err.code,
+                    False,
+                    {"expires_at": plan.expires_at.isoformat(), "checked_at": now_from_db.isoformat()},
+                )
+            )
+            return replace(b5_err, checks=tuple(records))
+        records.append(
+            PrecheckRecord(
+                "B5",
+                "plan_not_expired",
+                True,
+                {"expires_at": plan.expires_at.isoformat(), "checked_at": now_from_db.isoformat()},
+            )
+        )
 
         if (b6_err := check_b6(execution, plan)) is not None:
-            return b6_err
+            records.append(
+                PrecheckRecord(
+                    "B6",
+                    b6_err.code,
+                    False,
+                    {"action_key": execution.action_key},
+                )
+            )
+            return replace(b6_err, checks=tuple(records))
+        records.append(
+            PrecheckRecord(
+                "B6",
+                "action_key_verified",
+                True,
+                {"action_key": execution.action_key},
+            )
+        )
 
         b7_res = check_b7(plan, reg)
         if isinstance(b7_res, Refused):
-            return b7_res
+            records.append(
+                PrecheckRecord(
+                    "B7",
+                    b7_res.code,
+                    False,
+                    {"target_id": plan.target_id, "service": plan.service, "action": plan.action},
+                )
+            )
+            return replace(b7_res, checks=tuple(records))
         spec = b7_res
+        records.append(
+            PrecheckRecord(
+                "B7",
+                "target_in_allowlist",
+                True,
+                {"target_id": spec.target_id, "service": spec.service, "action": plan.action},
+            )
+        )
 
         b8_res = check_b8(plan, now_from_db, target_reader)
         if isinstance(b8_res, Refused):
-            return b8_res
+            records.append(
+                PrecheckRecord(
+                    "B8",
+                    b8_res.code,
+                    False,
+                    {"target_id": plan.target_id, "expected_version": plan.expected_version},
+                )
+            )
+            return replace(b8_res, checks=tuple(records))
         target_state = b8_res
+        records.append(
+            PrecheckRecord(
+                "B8",
+                "target_state_fresh_and_matches",
+                True,
+                {
+                    "target_id": target_state.target_id,
+                    "expected_version": plan.expected_version,
+                    "live_version": target_state.current_version,
+                    "read_at": target_state.read_at.isoformat(),
+                },
+            )
+        )
 
         if (b9_err := check_b9(session, execution, plan)) is not None:
-            return b9_err
+            records.append(
+                PrecheckRecord(
+                    "B9",
+                    b9_err.code,
+                    False,
+                    {"target_id": plan.target_id, "execution_id": str(execution.id)},
+                )
+            )
+            return replace(b9_err, checks=tuple(records))
+        records.append(
+            PrecheckRecord(
+                "B9",
+                "target_lock_free",
+                True,
+                {"target_id": plan.target_id, "execution_id": str(execution.id)},
+            )
+        )
 
         b10_res = check_b10(session, plan)
         if isinstance(b10_res, Refused):
-            return b10_res
+            records.append(
+                PrecheckRecord(
+                    "B10",
+                    b10_res.code,
+                    False,
+                    {"run_id": str(plan.run_id)},
+                )
+            )
+            return replace(b10_res, checks=tuple(records))
         run = b10_res
+        records.append(
+            PrecheckRecord(
+                "B10",
+                "run_approved",
+                True,
+                {"run_id": str(run.id), "run_status": run.status},
+            )
+        )
 
         return Allowed(
             execution=execution,
@@ -407,9 +592,11 @@ def run_prechecks(
             run=run,
             target_spec=spec,
             target_state=target_state,
+            checks=tuple(records),
         )
     except Exception as exc:
         return Refused(
             code="policy_unavailable",
             detail=f"Pre-dispatch check failed closed: {type(exc).__name__}: {exc}",
+            checks=tuple(records),
         )

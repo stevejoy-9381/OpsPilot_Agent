@@ -401,6 +401,8 @@ class WorkerService:
             if not rows:
                 return []
 
+            from agent.graph.nodes.await_review import DatabaseExecutionPort
+
             graph = graph_override or build_investigator_graph(
                 llm_client=self.llm_client,
                 run_service=RunService(session),
@@ -408,6 +410,7 @@ class WorkerService:
                 handoff_port=self.handoff_port,
                 checkpointer_type=self.checkpointer_type,
                 postgres_conn_string=self.postgres_conn_string,
+                execution_port=DatabaseExecutionPort(session),
             )
 
             for run_row, plan_row in rows:
