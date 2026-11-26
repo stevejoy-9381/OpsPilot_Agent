@@ -2,7 +2,7 @@ name: opspilot
 
 # Isolated Execution Broker Compose definition.
 # Attaches ONLY to `broker` (for core Postgres) and `lab-admin` (for lab admin endpoints).
-# Never mounts /var/run/docker.sock, telemetry, vault, or LLM credentials.
+# Never mounts the host Docker control socket, telemetry, vault, or LLM credentials.
 networks:
   broker:
     internal: true
