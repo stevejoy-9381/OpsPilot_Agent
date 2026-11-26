@@ -42,10 +42,12 @@ from apps.api.models.tables import (
     ActionPlanModel,
     DiagnosisModel,
     IncidentModel,
+    RunModel,
     SessionModel,
     TenantModel,
     UserModel,
 )
+from apps.api.repositories.run_repository import RunRepository
 from apps.api.services.run_service import RunService
 from broker.main import BrokerService
 from broker.target_client import FakeTarget, LabAdminClient
@@ -159,20 +161,24 @@ def _seed_needs_review_run(
     session.flush()
 
     ctx = TenantContext(tenant_id=tenant_id, role="worker")
+    run_repo = RunRepository(session)
     run_svc = RunService(session)
-    run = run_svc.create_run(ctx=ctx, incident_id=incident_id, case_id=case_id)
-    # Replace with explicit run_id? Use created run.id and recompute plan_hash
-    run_id = run.id
-    p_hash = plan_hash(
+    run = run_repo.create(
+        ctx=ctx,
+        run=RunModel(
+            id=run_id,
+            tenant_id=tenant_id,
+            incident_id=incident_id,
+            case_id=case_id,
+            status="queued",
+        ),
+    )
+    run_svc.append_event(
+        ctx=ctx,
         run_id=run_id,
-        tenant_id=tenant_id,
-        action=action,
-        service=service,
-        target_id=target_id,
-        expected_version=expected_version,
-        rollback_to_version=rollback_to_version,
-        rationale_evidence_ids=[ev_id],
-        expires_at=expires_at,
+        event_type="run_created",
+        actor="system",
+        payload={"case_id": case_id},
     )
 
     run, _ = run_svc.transition(
@@ -483,8 +489,24 @@ def test_offline_e2e_s1_s3_s5_and_audit_trail(monkeypatch: pytest.MonkeyPatch) -
         )
         session.flush()
         ctx_w = TenantContext(tenant_id=tenant_id, role="worker")
+        r_repo = RunRepository(session)
         r_svc = RunService(session)
-        s5_run = r_svc.create_run(ctx=ctx_w, incident_id=s5_inc_id, case_id="S5")
+        s5_run = r_repo.create(
+            ctx=ctx_w,
+            run=RunModel(
+                tenant_id=tenant_id,
+                incident_id=s5_inc_id,
+                case_id="S5",
+                status="queued",
+            ),
+        )
+        r_svc.append_event(
+            ctx=ctx_w,
+            run_id=s5_run.id,
+            event_type="run_created",
+            actor="system",
+            payload={"case_id": "S5"},
+        )
         s5_run, _ = r_svc.transition(
             ctx=ctx_w, run_id=s5_run.id, to_status="investigating", actor="worker", expected_version=s5_run.version
         )
