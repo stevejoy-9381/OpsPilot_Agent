@@ -84,6 +84,7 @@ services:
       SERVICE_NAME: inventory
       VERSION: ${VERSION:-v1.0.0}
       LAB_ADMIN_TOKEN: ${LAB_ADMIN_TOKEN:-super-secret-admin-token}
+      LAB_TEST_HOOKS_ENABLED: ${LAB_TEST_HOOKS_ENABLED:-false}
       LAB_DATABASE_URL: postgresql://inventory_ro:inv-ro-local-pw@lab-postgres:5432/lab
       LAB_REDIS_URL: redis://lab-redis:6379/0
       TELEMETRY_LOG_DIR: /telemetry/logs
@@ -108,6 +109,7 @@ services:
       SERVICE_NAME: orders
       VERSION: ${VERSION:-v1.0.0}
       LAB_ADMIN_TOKEN: ${LAB_ADMIN_TOKEN:-super-secret-admin-token}
+      LAB_TEST_HOOKS_ENABLED: ${LAB_TEST_HOOKS_ENABLED:-false}
       LAB_DATABASE_URL: postgresql://orders_rw:orders-rw-local-pw@lab-postgres:5432/lab
       INVENTORY_URL: http://inventory:8000
       TELEMETRY_LOG_DIR: /telemetry/logs
@@ -132,6 +134,7 @@ services:
       SERVICE_NAME: gateway
       VERSION: ${VERSION:-v1.0.0}
       LAB_ADMIN_TOKEN: ${LAB_ADMIN_TOKEN:-super-secret-admin-token}
+      LAB_TEST_HOOKS_ENABLED: ${LAB_TEST_HOOKS_ENABLED:-false}
       ORDERS_URL: http://orders:8000
       TELEMETRY_LOG_DIR: /telemetry/logs
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
@@ -193,6 +196,7 @@ services:
       CONTROLLER_TOKEN: ${CONTROLLER_TOKEN:-super-secret-controller-token}
       HARNESS_TOKEN: ${HARNESS_TOKEN:-super-secret-harness-token}
       LAB_ADMIN_TOKEN: ${LAB_ADMIN_TOKEN:-super-secret-admin-token}
+      LAB_TEST_HOOKS_ENABLED: ${LAB_TEST_HOOKS_ENABLED:-false}
       GATEWAY_URL: http://gateway:8000
       ORDERS_URL: http://orders:8000
       INVENTORY_URL: http://inventory:8000

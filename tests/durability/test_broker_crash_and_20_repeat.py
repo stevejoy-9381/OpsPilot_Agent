@@ -102,7 +102,7 @@ def _set_orders_version(version: str, admin_token: str) -> None:
 
 def _set_drop_hook(enabled: bool, admin_token: str) -> None:
     resp = httpx.post(
-        "http://orders:8000/admin/failure-hooks",
+        "http://orders:8000/admin/test-hooks",
         headers={"X-Lab-Admin-Token": admin_token},
         json={"drop_response_after_apply": enabled},
         timeout=10.0,
