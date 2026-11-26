@@ -331,7 +331,7 @@ def test_offline_e2e_s1_s3_s5_and_audit_trail(monkeypatch: pytest.MonkeyPatch) -
             f"/plans/{s1_plan_id}/decisions",
             headers={
                 "Idempotency-Key": f"idem-s1-{uuid4().hex[:8]}",
-                "If-Match": s1_hash,
+                "If-Match": str(client.get(f"/runs/{s1_run_id}").json()["version"]),
                 "X-CSRF-Token": "test-csrf",
                 "X-Requested-With": "XMLHttpRequest",
             },
@@ -429,7 +429,7 @@ def test_offline_e2e_s1_s3_s5_and_audit_trail(monkeypatch: pytest.MonkeyPatch) -
             f"/plans/{s3_plan_id}/decisions",
             headers={
                 "Idempotency-Key": f"idem-s3-{uuid4().hex[:8]}",
-                "If-Match": s3_hash,
+                "If-Match": str(client.get(f"/runs/{s3_run_id}").json()["version"]),
                 "X-CSRF-Token": "test-csrf",
                 "X-Requested-With": "XMLHttpRequest",
             },
@@ -605,7 +605,7 @@ def test_live_e2e_orders_rollback_and_deploys_row(monkeypatch: pytest.MonkeyPatc
             f"/plans/{plan_id}/decisions",
             headers={
                 "Idempotency-Key": f"idem-live-{uuid4().hex[:8]}",
-                "If-Match": p_hash,
+                "If-Match": str(client.get(f"/runs/{run_id}").json()["version"]),
                 "X-CSRF-Token": "test-csrf",
                 "X-Requested-With": "XMLHttpRequest",
             },
