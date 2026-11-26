@@ -11,9 +11,9 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    postgres_user: str = Field(default=..., alias="POSTGRES_USER")
-    postgres_password: SecretStr = Field(default=..., alias="POSTGRES_PASSWORD")
-    postgres_db: str = Field(default=..., alias="POSTGRES_DB")
+    postgres_user: str = Field(default="opspilot", alias="POSTGRES_USER")
+    postgres_password: SecretStr = Field(default=SecretStr(""), alias="POSTGRES_PASSWORD")
+    postgres_db: str = Field(default="opspilot", alias="POSTGRES_DB")
     database_url: SecretStr = Field(default=..., alias="DATABASE_URL")
     redis_url: SecretStr = Field(default=..., alias="REDIS_URL")
     gemini_api_key: SecretStr = Field(default=SecretStr(""), alias="GEMINI_API_KEY")
