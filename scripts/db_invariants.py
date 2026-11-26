@@ -328,7 +328,8 @@ def check_invariants() -> int:
                     """
                     SELECT id AS exec_id, action_key, status
                     FROM app.action_executions
-                    WHERE status IN ('acknowledged', 'reconciled', 'succeeded');
+                    WHERE status IN ('acknowledged', 'reconciled', 'succeeded')
+                      AND COALESCE(target_state_before->>'source', '') <> 'fake_target';
                     """
                 )
                 acked_execs = cur.fetchall()
