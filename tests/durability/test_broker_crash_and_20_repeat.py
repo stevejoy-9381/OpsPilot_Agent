@@ -319,6 +319,7 @@ def _wait_for_execution_terminal(
     run_id: UUID,
     *,
     timeout_s: float = 120.0,
+    procs: list[subprocess.Popen[str]] | None = None,
 ) -> tuple[str, str]:
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
@@ -332,8 +333,29 @@ def _wait_for_execution_terminal(
                 and r.status in ("verifying", "escalated", "completed", "failed")
             ):
                 return ex.status, r.status
+        if procs and all(p.poll() is not None for p in procs):
+            logs = "\n".join(
+                f"[rc={p.returncode}] {p.stdout.read() if p.stdout else ''}" for p in procs
+            )
+            raise RuntimeError(
+                f"Broker exited before {exec_id}/{run_id} reached terminal state:\n{logs[-3000:]}"
+            )
         time.sleep(0.2)
-    raise TimeoutError(f"Execution {exec_id} / Run {run_id} did not reach terminal state within {timeout_s}s")
+    logs = ""
+    if procs:
+        for p in procs:
+            rc = p.poll()
+            if rc is None:
+                p.terminate()
+                try:
+                    p.wait(timeout=3)
+                except Exception:
+                    p.kill()
+            out = p.stdout.read() if p.stdout else ""
+            logs += f"\n[proc rc={rc}] {out[-1500:]}"
+    raise TimeoutError(
+        f"Execution {exec_id} / Run {run_id} did not reach terminal state within {timeout_s}s.{logs}"
+    )
 
 
 def _count_lab_effects(action_key: str) -> tuple[int, int]:
@@ -443,7 +465,7 @@ def test_live_crash_matrix_sigkill_and_20_repeat_suite() -> None:
             proc2 = _spawn_broker(broker_id=f"broker-recover-{point}-2", crash_at=None, healthz_port=8092)
             try:
                 ex_status, run_status = _wait_for_execution_terminal(
-                    SessionLocal, exec_id, run_id, timeout_s=120.0
+                    SessionLocal, exec_id, run_id, timeout_s=120.0, procs=[proc2]
                 )
                 recover_s = round(time.monotonic() - kill_ts, 3)
             finally:
@@ -517,7 +539,9 @@ def test_live_crash_matrix_sigkill_and_20_repeat_suite() -> None:
                 assert dup_resp.status_code in (409, 412, 422, 428)
                 proc = _spawn_broker(broker_id=f"broker-rep-{i}", healthz_port=8091)
                 try:
-                    ex_status, run_status = _wait_for_execution_terminal(SessionLocal, exec_id, run_id)
+                    ex_status, run_status = _wait_for_execution_terminal(
+                        SessionLocal, exec_id, run_id, procs=[proc]
+                    )
                 finally:
                     proc.terminate()
                     proc.wait(timeout=10)
@@ -528,7 +552,9 @@ def test_live_crash_matrix_sigkill_and_20_repeat_suite() -> None:
                 p1 = _spawn_broker(broker_id=f"broker-race-{i}-a", healthz_port=8091)
                 p2 = _spawn_broker(broker_id=f"broker-race-{i}-b", healthz_port=8092)
                 try:
-                    ex_status, run_status = _wait_for_execution_terminal(SessionLocal, exec_id, run_id)
+                    ex_status, run_status = _wait_for_execution_terminal(
+                        SessionLocal, exec_id, run_id, procs=[p1, p2]
+                    )
                 finally:
                     p1.terminate()
                     p2.terminate()
@@ -549,7 +575,9 @@ def test_live_crash_matrix_sigkill_and_20_repeat_suite() -> None:
                 _set_drop_hook(False, admin_token)
                 p2 = _spawn_broker(broker_id=f"broker-kr-{i}-2", healthz_port=8092)
                 try:
-                    ex_status, run_status = _wait_for_execution_terminal(SessionLocal, exec_id, run_id)
+                    ex_status, run_status = _wait_for_execution_terminal(
+                        SessionLocal, exec_id, run_id, procs=[p2]
+                    )
                     recover_s = round(time.monotonic() - kill_ts, 3)
                 finally:
                     p2.terminate()
@@ -563,7 +591,9 @@ def test_live_crash_matrix_sigkill_and_20_repeat_suite() -> None:
                 try:
                     time.sleep(1.5)
                     _set_drop_hook(False, admin_token)
-                    ex_status, run_status = _wait_for_execution_terminal(SessionLocal, exec_id, run_id)
+                    ex_status, run_status = _wait_for_execution_terminal(
+                        SessionLocal, exec_id, run_id, procs=[p]
+                    )
                 finally:
                     p.terminate()
                     p.wait(timeout=10)
