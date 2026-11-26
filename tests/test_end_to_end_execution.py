@@ -48,6 +48,7 @@ from apps.api.models.tables import (
     UserModel,
 )
 from apps.api.repositories.run_repository import RunRepository
+from apps.api.routers.plans import get_target_reader
 from apps.api.services.run_service import RunService
 from broker.main import BrokerService
 from broker.target_client import FakeTarget, LabAdminClient
@@ -283,16 +284,19 @@ def test_no_endpoint_can_modify_execution() -> None:
 
 
 @contextmanager
-def _override_db_session(session_factory: sessionmaker[Session]):
+def _override_db_session(session_factory: sessionmaker[Session], target_reader: Any = None):
     def _override_db():
         with session_factory() as s:
             yield s
 
     app.dependency_overrides[get_db_session] = _override_db
+    if target_reader is not None:
+        app.dependency_overrides[get_target_reader] = lambda: target_reader
     try:
         yield
     finally:
         app.dependency_overrides.pop(get_db_session, None)
+        app.dependency_overrides.pop(get_target_reader, None)
 
 
 @pytest.mark.skipif(not _pg_available(), reason="Live PostgreSQL not reachable")
@@ -306,9 +310,10 @@ def test_offline_e2e_s1_s3_s5_and_audit_trail(monkeypatch: pytest.MonkeyPatch) -
         _drain_active_executions(raw_conn)
 
     registry = load_target_registry(DEFAULT_LAB_TARGETS_PATH)
+    offline_reader = FakeTarget({"lab-orders": "v1.3.0", "lab-inventory": "v1.0.0"}, registry=registry)
     client = TestClient(app)
 
-    with _override_db_session(SessionLocal), SessionLocal() as session:
+    with _override_db_session(SessionLocal, offline_reader), SessionLocal() as session:
         tenant_id, _, token = _setup_tenant_and_reviewer(session)
         client.cookies.set(SESSION_COOKIE_NAME, token)
 
@@ -539,16 +544,19 @@ def test_offline_e2e_s1_s3_s5_and_audit_trail(monkeypatch: pytest.MonkeyPatch) -
 
 @pytest.mark.lab
 @contextmanager
-def _override_db_session(session_factory: sessionmaker[Session]):
+def _override_db_session(session_factory: sessionmaker[Session], target_reader: Any = None):
     def _override_db():
         with session_factory() as s:
             yield s
 
     app.dependency_overrides[get_db_session] = _override_db
+    if target_reader is not None:
+        app.dependency_overrides[get_target_reader] = lambda: target_reader
     try:
         yield
     finally:
         app.dependency_overrides.pop(get_db_session, None)
+        app.dependency_overrides.pop(get_target_reader, None)
 
 
 @pytest.mark.skipif(not _pg_available(), reason="Live PostgreSQL not reachable")
@@ -586,7 +594,7 @@ def test_live_e2e_orders_rollback_and_deploys_row(monkeypatch: pytest.MonkeyPatc
         _drain_active_executions(raw_conn)
 
     client = TestClient(app)
-    with _override_db_session(SessionLocal), SessionLocal() as session:
+    with _override_db_session(SessionLocal, lab_client), SessionLocal() as session:
         tenant_id, _, token = _setup_tenant_and_reviewer(session)
         client.cookies.set(SESSION_COOKIE_NAME, token)
 
