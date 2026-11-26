@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import signal
 import threading
 import time
@@ -155,6 +156,39 @@ class BrokerService:
     def stop(self) -> None:
         """Signals the broker loop to stop claiming new executions."""
         self._stop_event.set()
+
+    def _maybe_crash_point(self, point: str) -> None:
+        """Test-only hook: signals stdout and pauses for SIGKILL when BROKER_CRASH_AT matches."""
+        if os.environ.get("BROKER_CRASH_AT") == point:
+            print(f"BROKER_CRASH_POINT_REACHED:{point}", flush=True)
+            self._stop_event.wait(30.0)
+
+    def reconcile_pending_verifications(self) -> int:
+        """Completes run -> verifying handoff if broker crashed after acknowledged/reconciled."""
+        recovered = 0
+        with self.session_factory() as session:
+            rows = session.execute(
+                select(ActionExecutionModel, ActionPlanModel, RunModel)
+                .join(ActionPlanModel, ActionExecutionModel.plan_id == ActionPlanModel.id)
+                .join(RunModel, ActionPlanModel.run_id == RunModel.id)
+                .where(
+                    ActionExecutionModel.status.in_(("acknowledged", "reconciled")),
+                    RunModel.status == "executing",
+                )
+            ).all()
+            for ex_row, plan_row, run_row in rows:
+                ctx = TenantContext(tenant_id=ex_row.tenant_id, role="broker")
+                session.execute(
+                    text("SELECT set_config('app.tenant_id', :tid, true)"),
+                    {"tid": str(ex_row.tenant_id)},
+                )
+                self.verification_port.handoff(
+                    session=session, ctx=ctx, run=run_row, execution=ex_row, plan=plan_row
+                )
+                recovered += 1
+            if recovered:
+                session.commit()
+        return recovered
 
     def _release_lease(self, execution_id: UUID, lease_token: UUID) -> None:
         """Releases lease on graceful shutdown if still held by this broker."""
@@ -395,6 +429,9 @@ class BrokerService:
                 .where(ActionPlanModel.id == plan_id, ActionPlanModel.tenant_id == tenant_id)
                 .values(status="executed")
             )
+            if os.environ.get("BROKER_CRASH_AT") == "e":
+                session.commit()
+                self._maybe_crash_point("e")
             self.verification_port.handoff(
                 session=session, ctx=ctx, run=run_row, execution=ex_ack, plan=plan_row
             )
@@ -507,6 +544,7 @@ class BrokerService:
                 pl_row = session.get(ActionPlanModel, plan_id)
                 assert ex_row is not None and pl_row is not None
                 rec = reconcile(ex_row, pl_row, target_id, self.target_client)
+                self._maybe_crash_point("f")
 
                 if isinstance(rec, Reconciled):
                     exec_repo.append_custom_event(
@@ -694,7 +732,19 @@ class BrokerService:
         if self._stop_event.is_set():
             return None
 
+        self.reconcile_pending_verifications()
+
         with self.session_factory() as session:
+            if os.environ.get("BROKER_CRASH_AT") == "a":
+                pending = session.execute(
+                    text(
+                        "SELECT 1 FROM app.action_executions "
+                        "WHERE status = 'queued' OR (status IN ('claimed','dispatched','uncertain') "
+                        "AND lease_expires_at < clock_timestamp()) LIMIT 1"
+                    )
+                ).fetchone()
+                if pending is not None:
+                    self._maybe_crash_point("a")
             exec_repo = ExecutionRepository(session)
             claimed = exec_repo.claim_next(
                 lease_owner=self.broker_id, lease_seconds=self.lease_seconds
@@ -707,6 +757,7 @@ class BrokerService:
             lease_token = claimed.lease_token
             claimed_status = claimed.status
             assert lease_token is not None
+            self._maybe_crash_point("b")
 
         hb_done = threading.Event()
         hb_thread = self._start_heartbeat(execution_id, lease_token, hb_done)
@@ -797,6 +848,8 @@ class BrokerService:
                 )
                 session.commit()
 
+            self._maybe_crash_point("c")
+
             # Phase 2: Call target outside DB transaction
             action_result = self._call_target(
                 target_id=target_id,
@@ -806,6 +859,7 @@ class BrokerService:
                 expected_version=expected_version,
                 rollback_to_version=rollback_to_version,
             )
+            self._maybe_crash_point("d")
 
             # Phase 3: Map target response in a new DB transaction
             with self.session_factory() as session:

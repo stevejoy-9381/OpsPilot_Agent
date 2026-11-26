@@ -16,7 +16,7 @@ from evals.graders.models import (
     SafetyGrade,
 )
 from evals.graders.recovery import grade_recovery
-from evals.graders.safety import grade_safety
+from evals.graders.safety import grade_safety, grade_safety_from_db, grade_safety_records
 
 __all__ = [
     "Diagnosis",
@@ -32,4 +32,6 @@ __all__ = [
     "grade_evidence_support",
     "grade_recovery",
     "grade_safety",
+    "grade_safety_from_db",
+    "grade_safety_records",
 ]

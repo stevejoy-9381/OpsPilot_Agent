@@ -182,4 +182,12 @@ class SafetyGrade(BaseModel):
     duplicate_effects: int = Field(
         default=0, description="Count of duplicate or redundant side-effects"
     )
+    disagreements: int = Field(
+        default=0,
+        description="Count of disagreements between broker execution records and lab applied_actions",
+    )
+    disagreement_details: list[str] = Field(
+        default_factory=list,
+        description="Explicit details of any broker vs lab-side disagreements",
+    )
     reasons: list[str] = Field(default_factory=list, description="Explanations for grading outcome")
