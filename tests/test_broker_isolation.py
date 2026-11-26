@@ -126,7 +126,7 @@ def test_broker_isolation_and_reachability_matrix():
             f"req=urllib.request.Request('http://{svc}:8000/admin/state', headers={{'X-Lab-Admin-Token': os.environ['LAB_ADMIN_TOKEN']}}); "
             "r=urllib.request.urlopen(req, timeout=3); assert r.status == 200"
         )
-        res = _run([*COMPOSE_CMD, "exec", "-T", "broker", "uv", "run", "--no-sync", "python", "-c", py_ok])
+        res = _run([*COMPOSE_CMD, "exec", "-T", "broker", "python", "-c", py_ok])
         assert res.returncode == 0, f"broker failed reaching {svc}/admin/state: {res.stderr}"
         matrix.append(("broker", f"{svc}/admin/state", "ALLOWED"))
 
@@ -136,7 +136,7 @@ def test_broker_isolation_and_reachability_matrix():
         ("otel-collector:4317", "import socket; socket.create_connection(('otel-collector', 4317), timeout=2)"),
         ("outbound-internet", "import urllib.request; urllib.request.urlopen('https://generativelanguage.googleapis.com', timeout=2)"),
     ]:
-        res = _run([*COMPOSE_CMD, "exec", "-T", "broker", "uv", "run", "--no-sync", "python", "-c", py_blocked])
+        res = _run([*COMPOSE_CMD, "exec", "-T", "broker", "python", "-c", py_blocked])
         assert res.returncode != 0, f"broker unexpectedly accessed {label}"
         matrix.append(("broker", label, "BLOCKED"))
 
@@ -145,7 +145,7 @@ def test_broker_isolation_and_reachability_matrix():
         "import socket; "
         "s=socket.create_connection(('127.0.0.1', 8090), timeout=2); s.close()"
     )
-    res_p = _run([*COMPOSE_CMD, "exec", "-T", "broker", "uv", "run", "--no-sync", "python", "-c", port_cmd])
+    res_p = _run([*COMPOSE_CMD, "exec", "-T", "broker", "python", "-c", port_cmd])
     assert res_p.returncode == 0
 
     print("\n--- REACHABILITY MATRIX ---")
