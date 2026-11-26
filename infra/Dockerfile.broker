@@ -15,7 +15,6 @@ COPY pyproject.toml uv.lock README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra broker --no-install-project
 
-COPY apps/__init__.py apps/__init__.py
 COPY apps/api/__init__.py apps/api/__init__.py
 COPY apps/api/logging.py apps/api/logging.py
 COPY apps/api/domain/ apps/api/domain/
