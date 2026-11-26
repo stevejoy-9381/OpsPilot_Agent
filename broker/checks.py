@@ -16,7 +16,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from apps.api.models.tables import (
     ActionExecutionModel,
@@ -165,14 +165,14 @@ def check_b3(session: Session, plan: ActionPlanModel) -> ApprovalModel | Refused
             tenant_id=plan.tenant_id,
         )
 
-    user = session.scalar(
-        select(UserModel).where(
+    user_role = session.scalar(
+        select(UserModel.role).where(
             UserModel.id == approval.reviewer_id,
             UserModel.tenant_id == plan.tenant_id,
         )
     )
-    if user is None or user.role not in ("reviewer", "admin"):
-        role_desc = user.role if user is not None else "missing"
+    if user_role not in ("reviewer", "admin"):
+        role_desc = user_role if user_role is not None else "missing"
         return Refused(
             code="approval_invalid_or_missing",
             detail=f"Approver role '{role_desc}' is not authorized (must be reviewer or admin)",
@@ -354,7 +354,17 @@ def check_b9(
 def check_b10(session: Session, plan: ActionPlanModel) -> RunModel | Refused:
     """B10: Owning run is in 'approved' status."""
     run = session.scalar(
-        select(RunModel).where(
+        select(RunModel)
+        .options(
+            load_only(
+                RunModel.id,
+                RunModel.tenant_id,
+                RunModel.status,
+                RunModel.version,
+                RunModel.last_error,
+            )
+        )
+        .where(
             RunModel.id == plan.run_id,
             RunModel.tenant_id == plan.tenant_id,
         )
