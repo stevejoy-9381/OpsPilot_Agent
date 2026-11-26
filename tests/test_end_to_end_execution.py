@@ -676,17 +676,17 @@ def test_live_e2e_orders_rollback_and_deploys_row(monkeypatch: pytest.MonkeyPatc
         with lab_conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, service, version, action, actor, deployed_at
+                SELECT deploy_id, service, old_version, new_version, version, deployed_by, deployed_at
                 FROM lab.deploys
                 WHERE service = 'orders'
-                ORDER BY deployed_at DESC, id DESC
+                ORDER BY deployed_at DESC, deploy_id DESC
                 LIMIT 1;
                 """
             )
             deploy_row = cur.fetchone()
             assert deploy_row is not None
             assert deploy_row[1] == "orders"
-            assert deploy_row[2] == "v1.0.0"
+            assert deploy_row[3] == "v1.0.0" or deploy_row[4] == "v1.0.0"
             print(f"\n--- LIVE lab.deploys ROW ---\n{deploy_row}")
 
     assert check_invariants(live=True) == 0
