@@ -1,4 +1,4 @@
-.PHONY: install lint typecheck test migrate run-api up down reset db-up db-migrate db-reset db-seed test-backbone web-install web-dev web-test web-lint lab-up lab-down lab-smoke lab-lean codespace-setup worker run-offline-demo test-agent test-hypothesis test-proposal test-approval test-durability demo-feature8
+.PHONY: install lint typecheck test migrate run-api up down reset db-up db-migrate db-reset db-seed test-backbone web-install web-dev web-test web-lint lab-up lab-down lab-smoke lab-lean codespace-setup worker run-offline-demo test-agent test-hypothesis test-proposal test-approval test-durability demo-feature8 broker-up broker-logs test-isolation
 
 install:
 	uv sync --extra dev
@@ -100,6 +100,15 @@ test-durability:
 
 demo-feature8:
 	uv run python scripts/demo_feature8.py
+
+broker-up:
+	docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.lab.yml -f infra/docker-compose.broker.yml --profile core --profile lab --profile broker up -d --build broker
+
+broker-logs:
+	docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.lab.yml -f infra/docker-compose.broker.yml logs -f broker
+
+test-isolation:
+	uv run pytest tests/test_broker_isolation.py tests/test_leakage.py -v -m lab -s
 
 codespace-setup: install web-install
 

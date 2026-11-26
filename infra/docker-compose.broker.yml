@@ -1,0 +1,43 @@
+name: opspilot
+
+# Isolated Execution Broker Compose definition.
+# Attaches ONLY to `broker` (for core Postgres) and `lab-admin` (for lab admin endpoints).
+# Never mounts /var/run/docker.sock, telemetry, vault, or LLM credentials.
+networks:
+  broker:
+    internal: true
+  lab-admin:
+    internal: true
+
+services:
+  broker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.broker
+    restart: unless-stopped
+    profiles:
+      - broker
+    mem_limit: 256m
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DATABASE_URL: postgresql+psycopg://opspilot_broker:${OPSPILOT_BROKER_PASSWORD:-opspilot_broker_dev_pw}@postgres:5432/${POSTGRES_DB:-opspilot}
+      LAB_ADMIN_TOKEN: ${LAB_ADMIN_TOKEN:-super-secret-admin-token}
+      BROKER_HEALTHZ_HOST: 0.0.0.0
+      BROKER_HEALTHZ_PORT: "8090"
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    networks:
+      - broker
+      - lab-admin
+    healthcheck:
+      test: ["CMD", "uv", "run", "--no-sync", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/healthz', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s

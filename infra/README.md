@@ -58,7 +58,23 @@ The baseline footprint for `core` + `lab` is strictly bounded under **3.5 GB**, 
 - **`core`**: Contains OpsPilot application services (`api`, `postgres`, `redis`).
 - **`lab`**: Internal synthetic microservice network (`gateway`, `orders`, `inventory`, `lab-postgres`, `lab-redis`, `prometheus`, `otel-collector`). Isolated from `core` and external internet.
 - **`lab-admin`**: Isolated administrative control plane (`gateway`, `orders`, `inventory`, and scenario controller). Used strictly for simulated in-process deployments and fault injections.
-- **`broker`**: Reserved for the broker service.
+- **`broker`**: Isolated control-plane DB network connecting `broker` to `postgres`.
+
+### Profile `broker` (Isolated Execution Broker)
+
+| Service | Image / Build | Network(s) | Memory Limit | Security Posture | Host bind |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `broker` | `infra/Dockerfile.broker` | `broker`, `lab-admin` | `256m` | Non-root (`10001`), `read_only: true`, `cap_drop: [ALL]`, `no-new-privileges` | None (`/healthz` internal `:8090` only) |
+
+### Network Reachability Matrix (Source of Truth: `tests/test_broker_isolation.py`)
+
+| Source \ Target | `broker:8090` | `lab /admin/*` | `controller` (`vault`) | `postgres` (core) | `otel-collector` (`evidence`) | `prometheus` | Outbound Internet |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`core` / `api`** | No | No | No | Yes (`opspilot_api`) | No | No | Host-dependent |
+| **`worker` (LLM)** | No | No | No | Yes (`opspilot_worker`) | Yes | No | Yes (LLM API) |
+| **`broker`** | Self (`/healthz`) | **Yes** (`X-Lab-Admin-Token`) | No (`HARNESS_TOKEN` absent) | Yes (`opspilot_broker`) | No | No write path | **No** (`internal: true`) |
+| **`controller`** | No | Yes | Self | No | No | Yes (`:9090`) | **No** (`internal: true`) |
+| **Lab services** | No | Self | No | No | Yes | Scraped (`:8000`) | **No** (`internal: true`) |
 
 ### Network Isolation Guarantees
 1. **Unreachable from `core`**: Containers running on the `core` network have no network attachment, route, or DNS resolution to `lab` or `lab-admin`. Admin endpoints on all lab services are strictly unreachable from `core`.
