@@ -266,6 +266,10 @@ def downgrade() -> None:
 
         DROP INDEX IF EXISTS app.idx_action_executions_lease_reclaim;
 
+        SET session_replication_role = replica;
+        DELETE FROM app.action_executions WHERE status IN ('claimed', 'refused', 'succeeded');
+        SET session_replication_role = DEFAULT;
+
         ALTER TABLE app.action_executions DROP CONSTRAINT IF EXISTS action_executions_last_error_check;
         ALTER TABLE app.action_executions DROP CONSTRAINT IF EXISTS action_executions_status_check;
         ALTER TABLE app.action_executions ADD CONSTRAINT action_executions_status_check

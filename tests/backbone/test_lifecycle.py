@@ -524,7 +524,7 @@ def test_negative_approve_expired_plan_row(session_factory, test_setup):
 
     run_id = uuid.uuid4()
     plan_id = uuid.uuid4()
-    expired_time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=15)
+    soon_expiring = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(milliseconds=150)
 
     with session_factory() as session:
         repo = RunRepository(session)
@@ -555,10 +555,13 @@ def test_negative_approve_expired_plan_row(session_factory, test_setup):
             service="checkout-service",
             plan_hash=plan_hash,
             status="proposed",
-            expires_at=expired_time,
+            expires_at=soon_expiring,
         )
         session.add(plan)
         session.commit()
+
+    import time
+    time.sleep(0.25)
 
     # Attempting to approve expired plan must detect expiration
     with session_factory() as session:

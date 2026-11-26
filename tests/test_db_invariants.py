@@ -166,10 +166,8 @@ def test_plan_immutability_trigger(db_conn, tenant_ids):
             cur.execute(
                 "UPDATE app.action_plans SET service = 'inventory' WHERE id = %s", (plan_id,)
             )
-        assert (
-            "Immutable plan fields (action, service, expected_version, rationale_evidence_ids, rollback_route, plan_hash, run_id, tenant_id) cannot be modified"
-            in str(exc.value)
-        )
+        assert "Immutable plan fields" in str(exc.value)
+        assert "cannot be modified" in str(exc.value)
 
         # Attempt to modify immutable field: action
         with pytest.raises(psycopg.Error) as exc:

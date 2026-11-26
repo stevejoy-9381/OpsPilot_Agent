@@ -73,7 +73,7 @@ def upgrade() -> None:
 
             NEW.updated_at = clock_timestamp();
 
-            IF NEW.status IN ('completed', 'escalated') AND OLD.status NOT IN ('completed', 'escalated') THEN
+            IF NEW.status IN ('completed', 'escalated', 'failed') AND OLD.status NOT IN ('completed', 'escalated', 'failed') THEN
                 NEW.finished_at = clock_timestamp();
             END IF;
 
