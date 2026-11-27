@@ -202,14 +202,35 @@ def _sqlite_session_factory() -> sessionmaker[Session]:
                 plan_id TEXT NOT NULL UNIQUE,
                 tenant_id TEXT NOT NULL,
                 action_key TEXT NOT NULL UNIQUE,
+                target_id TEXT,
                 status TEXT NOT NULL DEFAULT 'queued',
                 attempts INTEGER NOT NULL DEFAULT 0,
+                lease_owner TEXT,
+                lease_token TEXT,
+                lease_expires_at TIMESTAMP,
+                heartbeat_at TIMESTAMP,
+                refusal_code TEXT,
+                last_error TEXT,
                 target_state_before TEXT,
                 target_state_after TEXT,
                 dispatched_at TIMESTAMP,
+                acknowledged_at TIMESTAMP,
+                reconciled_at TIMESTAMP,
                 completed_at TIMESTAMP,
+                target_response TEXT,
                 broker_response TEXT,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE app.execution_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                execution_id TEXT NOT NULL,
+                tenant_id TEXT NOT NULL,
+                seq INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                actor TEXT NOT NULL DEFAULT 'broker',
+                payload TEXT NOT NULL DEFAULT '{}',
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (execution_id, seq)
             );
             CREATE TABLE app.run_events (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

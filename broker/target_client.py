@@ -315,6 +315,9 @@ class FakeTarget:
         return TargetActionLookup(status="not_applied")
 
 
+MAX_TARGET_RESPONSE_BYTES = 1_048_576  # 1 MiB cap for hostile target responses
+
+
 class LabAdminClient:
     """HTTPX client calling lab admin endpoints over lab-admin.
 
@@ -412,12 +415,31 @@ class LabAdminClient:
                 detail=f"Transport error: {type(exc).__name__}",
             )
 
+        if len(resp.content) > MAX_TARGET_RESPONSE_BYTES:
+            return TargetActionResult(
+                outcome=TargetActionOutcome.UNCERTAIN,
+                service=service,
+                action=action_name,
+                http_status=resp.status_code,
+                detail="Target response exceeded max byte limit",
+            )
+
         try:
             body = resp.json()
         except Exception:
             body = None
 
         if resp.status_code == 200 and isinstance(body, dict):
+            resp_key = body.get("action_key")
+            expected_key = payload.get("action_key")
+            if resp_key is not None and expected_key is not None and str(resp_key) != str(expected_key):
+                return TargetActionResult(
+                    outcome=TargetActionOutcome.UNCERTAIN,
+                    service=service,
+                    action=action_name,
+                    http_status=resp.status_code,
+                    detail="Target response action_key mismatch",
+                )
             st = body.get("status")
             if st == "applied":
                 return TargetActionResult(
@@ -516,7 +538,16 @@ class LabAdminClient:
                 return TargetActionLookup(
                     status="unknown", detail=f"HTTP {resp.status_code}"
                 )
+            if len(resp.content) > MAX_TARGET_RESPONSE_BYTES:
+                return TargetActionLookup(
+                    status="unknown", detail="Response exceeded max byte limit"
+                )
             body = resp.json()
+            resp_key = body.get("action_key") if isinstance(body, dict) else None
+            if resp_key is not None and str(resp_key) != action_key:
+                return TargetActionLookup(
+                    status="unknown", detail="Response action_key mismatch"
+                )
             return TargetActionLookup(
                 status=str(body.get("status", "unknown")),
                 service=body.get("service"),

@@ -1,4 +1,4 @@
-.PHONY: install lint typecheck test migrate run-api up down reset db-up db-migrate db-reset db-seed test-backbone web-install web-dev web-test web-lint lab-up lab-down lab-smoke lab-lean codespace-setup worker run-offline-demo test-agent test-hypothesis test-proposal test-approval test-durability demo-feature8 broker-up broker-logs test-isolation
+.PHONY: install lint typecheck test migrate run-api up down reset db-up db-migrate db-reset db-seed test-backbone web-install web-dev web-test web-lint lab-up lab-down lab-smoke lab-lean codespace-setup worker run-offline-demo test-agent test-hypothesis test-proposal test-approval test-durability demo-feature8 test-broker test-broker-live demo-feature9 broker-up broker-logs test-isolation
 
 install:
 	uv sync --extra dev
@@ -124,6 +124,15 @@ test-durability:
 
 demo-feature8:
 	uv run python scripts/demo_feature8.py
+
+test-broker:
+	uv run pytest tests/test_broker_checks_and_loop.py tests/test_broker_db_pg.py tests/test_broker_dispatch.py tests/test_broker_reconcile.py tests/test_end_to_end_execution.py tests/broker_adversarial/ -v -m "not lab and not live and not durability"
+
+test-broker-live:
+	uv run pytest tests/test_broker_isolation.py tests/test_end_to_end_execution.py tests/durability/test_broker_crash_and_20_repeat.py -v -m "lab"
+
+demo-feature9:
+	uv run python scripts/demo_feature9.py
 
 broker-up:
 	docker compose --env-file .env -f infra/docker-compose.yml -f infra/docker-compose.lab.yml -f infra/docker-compose.broker.yml --profile core --profile lab --profile broker up -d --build broker

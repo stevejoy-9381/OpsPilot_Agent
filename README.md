@@ -58,13 +58,14 @@ Modern cloud-native systems face complex production incidents where critical dia
                                         | (Proposals via Database/API)
                                         v
 +-------------------------------------------------------------------------------+
-|  BROKER (Network: broker only)                                                |
+|  BROKER (Networks: broker, lab-admin; read-only FS, non-root, no Docker sock) |
 |                                                                               |
-|   +---------------+  Approved Action Only  +--------------------------------+ |
-|   | Action Broker | ---------------------> | Toy Lab Services & Fault Inject| |
-|   | (broker/)     |                        | (lab/ - Feature 1)             | |
-|   +---------------+                        +--------------------------------+ |
-|   * Docker socket mounted ONLY here                                           |
+|   +---------------+  /admin/actions/* (CAS   +------------------------------+ |
+|   | Action Broker |  + action_key dedup)     | Toy Lab Services             | |
+|   | (broker/)     | -----------------------> | (lab/ - Feature 1)           | |
+|   | B1-B10 +      |                          | lab.applied_actions +        | |
+|   | Reconcile     |                          | lab.deploys                  | |
+|   +---------------+                          +------------------------------+ |
 +-------------------------------------------------------------------------------+
 ```
 
@@ -195,6 +196,10 @@ The baseline ladder measures non-agent performance across three benchmark rungs 
 | `make test-backbone` | `uv run pytest tests/backbone/test_lifecycle.py -v` | Run scripted lifecycle driver, negative paths, and 200-run load check |
 | `make test-agent` | `uv run pytest tests/test_agent_*.py tests/test_worker_*.py ...` | Run offline investigator agent and worker integration tests |
 | `make test-hypothesis` | `uv run pytest tests/test_hypothesis_ledger.py ...` | Run offline Feature 6 ledger, gate, outcome, and scripted-trajectory tests |
+| `make test-approval` | `uv run pytest tests/test_approval_*.py ...` | Run Feature 8 offline approval, interrupt, and adversarial tests |
+| `make test-broker` | `uv run pytest tests/test_broker_*.py ...` | Run Feature 9 offline broker, DB, and adversarial tests |
+| `make test-broker-live` | `uv run pytest ... -m lab` | Run Feature 9 live lab isolation, E2E, and crash tests |
+| `make demo-feature9` | `uv run python scripts/demo_feature9.py` | Run Feature 9 broker rollback, replay, and reconcile demo |
 | `make worker` | `uv run python -m agent.worker` | Run background investigator worker daemon |
 | `make run-offline-demo` | `uv run python scripts/demo_offline_investigator.py` | Run deterministic end-to-end offline investigation demo |
 | `make web-install`| `cd apps/web && npm install` | Install React frontend packages |
@@ -286,4 +291,10 @@ The baseline ladder measures non-agent performance across three benchmark rungs 
   - `POST /plans/{id}/decisions` and `GET /plans/{id}/decision` with `If-Match`, `Idempotency-Key`, CSRF, per-reviewer Redis rate limiting, redacted audit logs, and OpenAPI error examples
   - Durable `await_review` LangGraph interrupt + `Command(resume=...)` driver, `await_execution` stub (`ExecutionPort`), killable workers with `lease_token` fencing (`FencedRunService`), background heartbeats, expiry sweeper, and `SIGTERM` graceful shutdown
   - Subprocess durability harness (`tests/durability/`), 10-case adversarial suite (`tests/approval_adversarial/`), and extended `scripts/db_invariants.py` (Checks 1–9)
-- See [BACKLOG.md](BACKLOG.md) for Features 9–11 (Broker, Verifier, Review UI).
+- [x] **Feature 9: Isolated Execution Broker Complete**
+  - Design & implementation reports ([docs/broker_design.md](docs/broker_design.md), [docs/BROKER_REPORT.md](docs/BROKER_REPORT.md), [docs/demo_feature9_transcript.md](docs/demo_feature9_transcript.md))
+  - Isolated `broker/` worker (`BrokerService`) with `ExecutionRepository` (`FOR UPDATE SKIP LOCKED`, `lease_token` fencing, heartbeats), deterministic pre-dispatch checks `B1`–`B10` (`prechecks_completed` audit events), `DatabaseExecutionPort` DB-only handoff, and `reconcile_pending_verifications()`
+  - Target-side CAS + `action_key` idempotency (`lab.applied_actions`) and `reconcile()` before retry on `UNCERTAIN` responses, plus `LabAdminClient` response size cap (`1 MiB`), `follow_redirects=False`, and `action_key` parity checks
+  - Hardened container (`infra/Dockerfile.broker`, `infra/docker-compose.broker.yml`: non-root `10001:10001`, `read_only: true`, `cap_drop: [ALL]`, no Docker socket, `broker` + `lab-admin` networks only)
+  - API `GET /runs/{id}` execution summary + B1–B10 audit trail (`(time, who, what, evidence)`), sanitized `GET /runs/{id}/events`, `grade_safety_records` / `grade_safety_from_db`, extended `scripts/db_invariants.py` (Checks 1–12), and `tests/broker_adversarial/`
+- See [BACKLOG.md](BACKLOG.md) for Features 10–11 (Verifier, Review UI).

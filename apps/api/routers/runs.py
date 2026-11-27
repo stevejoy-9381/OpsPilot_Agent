@@ -342,10 +342,14 @@ def get_run(
         else None
     )
 
-    exec_row = repo.get_run_execution(ctx, id)
+    exec_row = repo.get_run_execution(ctx, id) if hasattr(repo, "get_run_execution") else None
     exec_summary: ExecutionSummary | None = None
     if exec_row is not None:
-        exec_events = repo.get_run_execution_events(ctx, id)
+        exec_events = (
+            repo.get_run_execution_events(ctx, id)
+            if hasattr(repo, "get_run_execution_events")
+            else []
+        )
         audit_trail = [
             ExecutionAuditEntry(
                 time=ev.created_at,
@@ -673,7 +677,11 @@ async def get_run_events(
             prev_run_events = repo.get_run_events(ctx, id, after_seq=after_seq - 1, limit=1)
             if prev_run_events and prev_run_events[0].seq == after_seq:
                 after_created_at = prev_run_events[0].created_at
-        exec_events = repo.get_run_execution_events(ctx, id, after_created_at=after_created_at)
+        exec_events = (
+            repo.get_run_execution_events(ctx, id, after_created_at=after_created_at)
+            if hasattr(repo, "get_run_execution_events")
+            else []
+        )
 
         combined: list[tuple[Any, int, int, RunEventResponse]] = []
         for e in run_events:

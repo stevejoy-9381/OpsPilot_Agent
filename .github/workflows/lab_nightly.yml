@@ -75,4 +75,27 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
           TEST_DB_URL: postgresql://opspilot:opspilot_dev_password@127.0.0.1:5432/opspilot
-        run: uv run pytest tests/durability/ -v -m durability
+        run: uv run pytest tests/durability/test_crash_and_duplicates.py -v -m durability
+
+  broker-live-and-durability:
+    name: Feature 9 Live Lab & Broker Crash Matrix (Docker Runner)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5.2.1
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run lab-marked broker and durability tests
+        run: uv run pytest tests/test_broker_isolation.py tests/test_end_to_end_execution.py tests/durability/test_broker_crash_and_20_repeat.py -v -m "lab"
